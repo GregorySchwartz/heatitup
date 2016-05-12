@@ -5,6 +5,7 @@ Collections the types used in the program
 -}
 
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Types where
 
@@ -17,14 +18,15 @@ import Control.Lens
 -- Local
 
 -- Algebraic
-newtype Position         = Position { unPosition :: Int } deriving (Eq, Show)
+newtype Position         = Position { unPosition :: Int }
+                           deriving (Eq, Show, Num)
 newtype LongestSubstring = LongestSubstring
                            { unLongestSubstring :: Duplication }
                            deriving (Show)
 newtype Query     = Query { unQuery :: C.ByteString } deriving (Show)
 newtype Substring = Substring { unSubstring :: C.ByteString }
                     deriving (Show)
-newtype Length    = Length Int
+newtype Length    = Length Int deriving (Show)
 newtype MinSize   = MinSize Int
 newtype MinMut    = MinMut { unMinMut :: Int }
 newtype MaxMut    = MaxMut { unMaxMut :: Int } deriving (Eq, Ord)

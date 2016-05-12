@@ -31,12 +31,13 @@ import Classify
 import Plot
 
 -- | Command line arguments
-data Options = Options { input      :: Maybe String
-                       , output     :: Maybe String
-                       , outputPlot :: Maybe String
-                       , minSize    :: Int
-                       , minMut     :: Maybe Int
-                       , revCompl   :: Bool
+data Options = Options { input           :: Maybe String
+                       , output          :: Maybe String
+                       , outputPlot      :: Maybe String
+                       , minSize         :: Int
+                       , minAtypicalSize :: Int
+                       , minMut          :: Maybe Int
+                       , revCompl        :: Bool
                        }
 
 -- | Command line options
@@ -70,6 +71,14 @@ options = Options
          <> metavar "INT"
          <> value 5
          <> help "The minimum size of a duplication"
+          )
+      <*> option auto
+          ( long "min-atypical-size"
+         <> short 'S'
+         <> metavar "INT"
+         <> value 5
+         <> help "The minimum size of spacer commonality to be considered\
+                 \ atypical"
           )
       <*> optional ( option auto
           ( long "min-mutations"
@@ -124,7 +133,10 @@ mainFunc opts = do
             ( ITD { _duplication = fmap unLongestSubstring dup
                   , _spacer      =
                       join
-                        . fmap ( flip (getSpacer (revCompl opts))
+                        . fmap ( flip ( getSpacer
+                                        (revCompl opts)
+                                        (MinSize $ minAtypicalSize opts)
+                                      )
                                       (Query . fastaSeq $ fs)
                                . unLongestSubstring
                                )
