@@ -118,7 +118,7 @@ getNonOverlapIdx (Substring base) (Substring spacer) (Substring s) (Length l) =
         $ base
   where
     newString = C.drop l original
-    original  = C.append spacer . C.take (C.length spacer `div` 3) $ s
+    original  = C.append spacer . C.take (C.length s `div` 3) $ s
 
 -- | Find the string inbetween two indices of the duplication
 inbetweenSubstring :: Length -> Position -> Position -> Query -> Substring

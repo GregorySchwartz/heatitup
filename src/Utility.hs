@@ -5,11 +5,13 @@ Collections the functions of general use in the program.
 -}
 
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Utility
     ( fragmentSequence
     , hammingList
     , isOverlappingBySubstring
+    , itdFalsePositive
     ) where
 
 -- Standard
@@ -46,3 +48,12 @@ isOverlappingBySubstring (Duplication s [p1, p2] _) =
     isOverlappingByPosition (Window $ C.length . unSubstring $ s) p1 p2
 isOverlappingBySubstring _ =
     error "Multiple locations found when checking for overlap"
+
+-- | Check if the duplication is a false positive
+itdFalsePositive :: Bool -> ITD -> Bool
+itdFalsePositive True itd  =
+    (fmap _dupSubstring . _duplication $ itd)
+        `elem` fmap (Just . Substring) [ "AATTTAG" ]
+itdFalsePositive False itd =
+    (fmap _dupSubstring . _duplication $ itd)
+        `elem` fmap (Just . Substring) [ "CTAAATT" ]

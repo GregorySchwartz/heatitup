@@ -14,26 +14,31 @@ import qualified System.IO as IO
 import Control.Monad
 
 -- Cabal
-import Options.Applicative
+import qualified Data.Vector as V
 import qualified Data.ByteString.Char8 as C
 import Pipes
 import qualified Pipes.Prelude as P
 import qualified Pipes.ByteString as PB
+import Pipes.Csv
 import Data.Fasta.ByteString
 import qualified Diagrams.Backend.PGF as PGF
 import Diagrams.TwoD.Size (mkWidth, mkHeight)
+import Options.Applicative
 
 -- Local
 import Types
+import Utility
 import Repeated
 import Spacer
 import Classify
 import Plot
+import Print
 
 -- | Command line arguments
 data Options = Options { input           :: Maybe String
                        , output          :: Maybe String
                        , outputPlot      :: Maybe String
+                       , outputLabel     :: String
                        , minSize         :: Int
                        , minAtypicalSize :: Int
                        , minMut          :: Maybe Int
@@ -65,6 +70,13 @@ options = Options
                  \ on it: output_1.svg, output_2.svg, etc."
           )
         )
+      <*> strOption
+          ( long "label"
+         <> short 'l'
+         <> metavar "FILE"
+         <> value ""
+         <> help "The label to use in the label column for the output"
+          )
       <*> option auto
           ( long "min-size"
          <> short 's'
@@ -78,7 +90,7 @@ options = Options
          <> metavar "INT"
          <> value 5
          <> help "The minimum size of spacer commonality to be considered\
-                 \ atypical"
+                 \ not atypical"
           )
       <*> optional ( option auto
           ( long "min-mutations"
@@ -108,7 +120,6 @@ plotITDM opts (!count, (!itd, !fs)) = do
         $ fs
 
     return (itd, fs)
-
 
 mainFunc :: Options -> IO ()
 mainFunc opts = do
@@ -144,11 +155,21 @@ mainFunc opts = do
                   }
             , fs
             )
-        getClass (!itd, !fs) = C.pack
-                             . (++ "|" ++ show (classifyITD itd) ++ "\n")
-                             . C.unpack
-                             . fastaHeader
-                             $ fs
+        filterFalsePositive (!itd, !fs) =
+            not . itdFalsePositive (revCompl opts) $ itd
+        getClass (!itd, !fs)     = (classifyITD itd, itd, fs)
+        printRow (!c, !itd, !fs) =
+            printITD (Label . C.pack . outputLabel $ opts) fs c itd
+        headerOrder              = V.fromList [ C.pack "label"
+                                              , C.pack "fHeader"
+                                              , C.pack "dSubstring"
+                                              , C.pack "dLocations"
+                                              , C.pack "dMutations"
+                                              , C.pack "sSubstring"
+                                              , C.pack "sLocation"
+                                              , C.pack "sOtherLocations"
+                                              , C.pack "classification"
+                                              ]
 
     runEffect $ ( ( P.zip (each [1..])
                         ( pipesFasta (PB.fromHandle hIn)
@@ -156,8 +177,10 @@ mainFunc opts = do
                         )
                   )
                 >-> P.mapM (plotITDM opts)
-                >-> P.map getClass
-                 >> yield (C.pack "\n") )  -- want that newline at the end
+                >-> P.filter filterFalsePositive
+                >-> P.map (printRow . getClass)
+                >-> encodeByName headerOrder
+                )
             >-> PB.toHandle hOut
 
     -- Finish up by closing file if written

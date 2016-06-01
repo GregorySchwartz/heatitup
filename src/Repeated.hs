@@ -191,12 +191,18 @@ makeDuplication :: Query -> Substring -> Duplication
 makeDuplication (Query q) (Substring s) =
     Duplication
     (Substring s)
-    (fmap Position . flip nonOverlappingIndices q $ s)
+    headLastDup
     []
+  where
+    headLastDup = case [headMay dups, lastMay dups] of
+                      [Just x, Just y] -> if x == y then [] else [x, y]
+                      _                -> []
+    dups = fmap Position . sort . flip nonOverlappingIndices q $ s
 
 -- | Check if a substring is overlapping
 isOverlapping :: Duplication -> Bool
-isOverlapping = null . drop 1 . _dupLocations
+isOverlapping x = (null . drop 1 . _dupLocations $ x)
+               || (null . drop 1 . nub . _dupLocations $ x)
 
 -- | Get the deepest substring in a suffix tree
 substringRankings :: T.STree Char -> [(Substring, Int)]
