@@ -51,9 +51,14 @@ isOverlappingBySubstring _ =
 
 -- | Check if the duplication is a false positive
 itdFalsePositive :: Bool -> ITD -> Bool
-itdFalsePositive True itd  =
-    (fmap _dupSubstring . _duplication $ itd)
-        `elem` fmap (Just . Substring) [ "AATTTAG" ]
-itdFalsePositive False itd =
-    (fmap _dupSubstring . _duplication $ itd)
-        `elem` fmap (Just . Substring) [ "CTAAATT" ]
+itdFalsePositive rev itd = check . bad $ rev
+  where
+    bad True  = "AATTTAG"
+    bad False = "CTAAATT"
+    check s = (<= 1)
+            . sum
+            . fmap (\x -> if x then 0 else 1)
+            . hammingList s
+            . maybe s (unSubstring . _dupSubstring)
+            . _duplication
+            $ itd
