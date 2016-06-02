@@ -19,6 +19,7 @@ import Data.Char
 
 -- Cabal
 import qualified Data.ByteString.Char8 as C
+import Text.EditDistance
 
 -- Local
 import Types
@@ -50,15 +51,13 @@ isOverlappingBySubstring _ =
     error "Multiple locations found when checking for overlap"
 
 -- | Check if the duplication is a false positive
-itdFalsePositive :: Bool -> ITD -> Bool
-itdFalsePositive rev itd = check . bad $ rev
+itdFalsePositive :: Bool -> Distance -> ITD -> Bool
+itdFalsePositive rev (Distance d) itd = check . bad $ rev
   where
     bad True  = "AATTTAG"
     bad False = "CTAAATT"
-    check s = (<= 1)
-            . sum
-            . fmap (\x -> if x then 0 else 1)
-            . hammingList s
-            . maybe s (unSubstring . _dupSubstring)
+    check s = (<= d)
+            . levenshteinDistance defaultEditCosts s
+            . maybe s (C.unpack . unSubstring . _dupSubstring)
             . _duplication
             $ itd

@@ -30,6 +30,7 @@ newtype Query     = Query { unQuery :: C.ByteString } deriving (Show)
 newtype Substring = Substring { unSubstring :: C.ByteString }
                     deriving (Eq, Show)
 newtype Length    = Length Int deriving (Show)
+newtype Distance  = Distance Int deriving (Show)
 newtype Label     = Label C.ByteString
 newtype MinSize   = MinSize Int
 newtype MinMut    = MinMut { unMinMut :: Int }

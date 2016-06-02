@@ -42,6 +42,7 @@ data Options = Options { input           :: Maybe String
                        , minSize         :: Int
                        , minAtypicalSize :: Int
                        , minMut          :: Maybe Int
+                       , distance        :: Int
                        , revCompl        :: Bool
                        }
 
@@ -80,17 +81,17 @@ options = Options
       <*> option auto
           ( long "min-size"
          <> short 's'
-         <> metavar "INT"
+         <> metavar "[5] | INT"
          <> value 5
          <> help "The minimum size of a duplication"
           )
       <*> option auto
           ( long "min-atypical-size"
          <> short 'S'
-         <> metavar "INT"
+         <> metavar "[5] | INT"
          <> value 5
-         <> help "The minimum size of spacer commonality to be considered\
-                 \ not atypical"
+         <> help "The minimum size of spacer commonality with the exon\
+                 \ to be considered not atypical"
           )
       <*> optional ( option auto
           ( long "min-mutations"
@@ -99,6 +100,16 @@ options = Options
          <> help "The minimum number of nucleotides between mutations"
           )
         )
+      <*> option auto
+          ( long "levenshtein-distance"
+         <> short 'L'
+         <> metavar "[2] | INT"
+         <> value 2
+         <> help "The minimum Levenshtein distance to the false positive\
+                 \ checker. If the distance to the false positive string\
+                 \ is less than this number, the duplication is considered\
+                 \ a false positive."
+          )
       <*> switch
           ( long "reverse-complement"
          <> short 'r'
@@ -156,7 +167,9 @@ mainFunc opts = do
             , fs
             )
         filterFalsePositive (!itd, !fs) =
-            not . itdFalsePositive (revCompl opts) $ itd
+            not
+                . itdFalsePositive (revCompl opts) (Distance $ distance opts)
+                $ itd
         getClass (!itd, !fs)     = (classifyITD itd, itd, fs)
         printRow (!c, !itd, !fs) =
             printITD (Label . C.pack . outputLabel $ opts) fs c itd
