@@ -65,6 +65,7 @@ makeLenses ''ITD
 
 data PrintITD = PrintITD { label           :: C.ByteString
                          , fHeader         :: C.ByteString
+                         , fSequence       :: C.ByteString
                          , dSubstring      :: C.ByteString
                          , dLocations      :: C.ByteString
                          , dMutations      :: C.ByteString

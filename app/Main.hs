@@ -177,15 +177,18 @@ mainFunc opts = do
                   }
             , fs
             )
-        filterFalsePositive (!itd, !fs) =
-            not
-                . itdFalsePositive (revCompl opts) (Distance $ distance opts)
-                $ itd
+        falsePositiveITDCheck (!itd, !fs) =
+            if not
+             . itdFalsePositive (revCompl opts) (Distance $ distance opts)
+             $ itd
+                then (itd, fs)
+                else (itd { _duplication = Nothing, _spacer = Nothing }, fs)
         getClass (!itd, !fs)     = (classifyITD itd, itd, fs)
         printRow (!c, !itd, !fs) =
             printITD (Label . C.pack . outputLabel $ opts) fs c itd
         headerOrder              = V.fromList [ C.pack "label"
                                               , C.pack "fHeader"
+                                              , C.pack "fSequence"
                                               , C.pack "dSubstring"
                                               , C.pack "dLocations"
                                               , C.pack "dMutations"
@@ -201,8 +204,7 @@ mainFunc opts = do
                         )
                   )
                 >-> P.mapM (plotITDM opts)
-                >-> P.filter filterFalsePositive
-                >-> P.map (printRow . getClass)
+                >-> P.map (printRow . getClass . falsePositiveITDCheck)
                 >-> encodeByName headerOrder
                 )
             >-> PB.toHandle hOut

@@ -28,6 +28,7 @@ printITD :: Label -> FastaSequence -> Classification -> ITD -> PrintITD
 printITD (Label l) fs classification itd =
     PrintITD { label           = l
              , fHeader         = fastaHeader fs
+             , fSequence       = fastaSeq fs
              , dSubstring      = fromMaybe ""
                                . fmap (unSubstring . _dupSubstring)
                                . _duplication

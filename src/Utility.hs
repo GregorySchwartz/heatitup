@@ -17,6 +17,7 @@ module Utility
     ) where
 
 -- Standard
+import Data.Maybe
 import Data.Char
 import Data.List
 
@@ -55,15 +56,16 @@ isOverlappingBySubstring _ =
 
 -- | Check if the duplication is a false positive
 itdFalsePositive :: Bool -> Distance -> ITD -> Bool
-itdFalsePositive rev (Distance d) itd = check . bad $ rev
+itdFalsePositive rev (Distance d) itd =
+    fromMaybe False . fmap (check (bad rev)) . _duplication $ itd
   where
     bad True  = "AATTTAG"
     bad False = "CTAAATT"
     check s = (<= d)
             . levenshteinDistance defaultEditCosts s
-            . maybe s (C.unpack . unSubstring . _dupSubstring)
-            . _duplication
-            $ itd
+            . C.unpack
+            . unSubstring
+            . _dupSubstring
 
 -- | Check if the spacer is a false positive based on the Levenshtein
 -- distance (ignoring the insertions and deletions). The threshold here is
