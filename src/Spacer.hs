@@ -25,10 +25,13 @@ import Control.Lens
 
 -- Local
 import Types
+import Utility
 
-getSpacer :: Bool -> MinSize -> Duplication -> Query -> Maybe Spacer
+getSpacer ::
+    Bool -> MinSize -> Consecutive -> Duplication -> Query -> Maybe Spacer
 getSpacer revCompl
           minAtypicalSize
+          consecutive
           (Duplication { _dupSubstring = s, _dupLocations = [p1, p2] })
           q
     | C.null . unSubstring $ spacer = Nothing
@@ -38,7 +41,9 @@ getSpacer revCompl
                    , _spacerLocation       = spacerPos
                    , _spacerOtherLocations = otherSpacerPositions
                                              minAtypicalSize
+                                             consecutive
                                              spacerPos
+                                             p1
                                              p2
                                              (C.pack newFLT3)
                                              s
@@ -64,6 +69,8 @@ mutateQuery (Just (Position p)) (Substring s) q =
 -- | Get the positions that are different between the spacer and the FLT3
 -- sequence
 otherSpacerPositions :: MinSize
+                     -> Consecutive
+                     -> Position
                      -> Position
                      -> Position
                      -> C.ByteString
@@ -71,11 +78,24 @@ otherSpacerPositions :: MinSize
                      -> Substring
                      -> [Position]
 otherSpacerPositions (MinSize minAtypicalSize)
+                     consecutive
                      (Position spacerPos)
+                     (Position p1)
                      (Position p2)
                      base
                      (Substring s)
-                     (Substring spacer) =
+                     (Substring spacer)
+    | consecutiveSpacerFalsePositive consecutive base
+    . Substring
+    . getLeftRightPortion LeftP spacer
+    $ s
+    = []
+    | consecutiveSpacerFalsePositive consecutive base
+    . Substring
+    . getLeftRightPortion RightP spacer
+    $ s
+    = []
+    | otherwise                                                                =
         fmap Position
             . Set.toList
             . Set.difference (Set.fromList spacerPoss)
@@ -85,40 +105,49 @@ otherSpacerPositions (MinSize minAtypicalSize)
             $ commonStart
   where
     commonPos Nothing       = []
-    commonPos (Just (Position x, Length l)) = [x .. x + l - 1]
-    commonStart        = headMay
-                       . catMaybes
-                       . fmap ( fmap (over _1 (+ (Position spacerPos)))
-                              . getNonOverlapIdx
-                                (Substring base)
-                                (Substring spacer)
-                                (Substring s)
-                              . Length
-                              )
-                       $ [0 .. minLen]
-    spacerRight        = C.append spacer s
-    minLen             = if C.length spacer <= minAtypicalSize
-                             then 0
-                             else C.length spacer - minAtypicalSize
-    spacerPoss         = [spacerPos .. p2 - 1]
+    commonPos (Just (Left (Length l)))  = [p1 + C.length s - 1 .. p2 - l - 1]
+    commonPos (Just (Right (Length l))) = [spacerPos + l .. p2 - 1]
+    commonStart = headMay
+                . catMaybes
+                . fmap ( leftOrRightFound
+                         (Substring base)
+                         (Substring spacer)
+                         (Substring s)
+                       . Length
+                       )
+                $ [0 .. minLen]
+    minLen      = if C.length spacer <= minAtypicalSize
+                      then (-1)
+                      else C.length spacer - minAtypicalSize
+    spacerPoss  = [spacerPos .. p2 - 1]
 
--- | Get the non overlapping index between two strings when taking
--- a certain amount of the second string
-getNonOverlapIdx :: Substring
+-- | Whether the left or right substring is found in the sequence
+leftOrRightFound :: Substring
                  -> Substring
                  -> Substring
                  -> Length
-                 -> Maybe (Position, Length)
-getNonOverlapIdx (Substring base) (Substring spacer) (Substring s) (Length l) =
-    fmap (,Length . C.length $ newString)
-        . fmap
-          (const (Position . head . nonOverlappingIndices newString $ original))
-        . headMay
-        . nonOverlappingIndices newString
-        $ base
+                 -> Maybe (Either Length Length)
+leftOrRightFound (Substring base) (Substring spacer) (Substring s) (Length l) =
+    if C.isInfixOf newString1 base
+        then Just . Left . Length $ l
+        else if C.isInfixOf newString2 base 
+            then Just . Right . Length $ l
+            else Nothing
   where
-    newString = C.drop l original
-    original  = C.append spacer . C.take (C.length s `div` 3) $ s
+    newString1 = C.reverse . C.drop l . C.reverse $ original1
+    newString2 = C.drop l original2
+    original1  = getLeftRightPortion LeftP spacer s
+    original2  = getLeftRightPortion RightP spacer s
+
+-- | Get the string plus a portion (1 / 3) of another string and
+-- concatenate them
+getLeftRightPortion :: LeftRightPortion
+                    -> C.ByteString
+                    -> C.ByteString
+                    -> C.ByteString
+getLeftRightPortion LeftP x y  =
+    C.append (C.drop (2 * (C.length y `div` 3)) y) x
+getLeftRightPortion RightP x y = C.append x . C.take (C.length y `div` 3) $ y
 
 -- | Find the string inbetween two indices of the duplication
 inbetweenSubstring :: Length -> Position -> Position -> Query -> Substring

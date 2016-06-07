@@ -12,10 +12,13 @@ module Utility
     , hammingList
     , isOverlappingBySubstring
     , itdFalsePositive
+    , spacerFalsePositive
+    , consecutiveSpacerFalsePositive
     ) where
 
 -- Standard
 import Data.Char
+import Data.List
 
 -- Cabal
 import qualified Data.ByteString.Char8 as C
@@ -61,3 +64,36 @@ itdFalsePositive rev (Distance d) itd = check . bad $ rev
             . maybe s (C.unpack . unSubstring . _dupSubstring)
             . _duplication
             $ itd
+
+-- | Check if the spacer is a false positive based on the Levenshtein
+-- distance (ignoring the insertions and deletions). The threshold here is
+-- a percentage of the spacer with a portion of the duplication (how much
+-- of that string differs).
+spacerFalsePositive :: Percent -> C.ByteString -> Substring -> Bool
+spacerFalsePositive (Percent p) base (Substring s) =
+    (<= (p / 100))
+        . ( \x -> (fromIntegral x - expectedDistance)
+          / (fromIntegral $ C.length s)
+          )
+        . levenshteinDistance defaultEditCosts (C.unpack base)
+        . C.unpack
+        $ s
+  where
+    expectedDistance = fromIntegral $ C.length base - C.length s
+
+-- | Check if the spacer is a false positive based on the Levenshtein
+-- distance (ignoring the insertions and deletions). The threshold here is
+-- a percentage of the spacer with a portion of the duplication (how much
+-- of that string differs).
+consecutiveSpacerFalsePositive :: Consecutive
+                               -> C.ByteString
+                               -> Substring
+                               -> Bool
+consecutiveSpacerFalsePositive (Consecutive c) base (Substring s) =
+    any (not . isConsecutive c . hammingList s . unSubstring)
+        . fragmentSequence (Window . C.length $ s)
+        $ base
+
+-- | See if any x elements are false and neighboring in a list
+isConsecutive :: Int -> [Bool] -> Bool
+isConsecutive c = any (\x -> ((>= c) $ length x) && (not $ head x)) . group

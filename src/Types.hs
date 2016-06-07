@@ -26,18 +26,22 @@ newtype Position         = Position { unPosition :: Int }
 newtype LongestSubstring = LongestSubstring
                            { unLongestSubstring :: Duplication }
                            deriving (Show)
-newtype Query     = Query { unQuery :: C.ByteString } deriving (Show)
-newtype Substring = Substring { unSubstring :: C.ByteString }
+newtype Query       = Query { unQuery :: C.ByteString } deriving (Show)
+newtype Substring   = Substring { unSubstring :: C.ByteString }
                     deriving (Eq, Show)
-newtype Length    = Length Int deriving (Show)
-newtype Distance  = Distance Int deriving (Show)
-newtype Label     = Label C.ByteString
-newtype MinSize   = MinSize Int
-newtype MinMut    = MinMut { unMinMut :: Int }
-newtype MaxMut    = MaxMut { unMaxMut :: Int } deriving (Eq, Ord)
-newtype Window    = Window Int
+newtype Length      = Length Int deriving (Show)
+newtype Distance    = Distance Int deriving (Show)
+newtype Percent     = Percent Double deriving (Show)
+newtype Consecutive = Consecutive Int deriving (Show)
+newtype Label       = Label C.ByteString
+newtype MinSize     = MinSize Int
+newtype MinMut      = MinMut { unMinMut :: Int }
+newtype MaxMut      = MaxMut { unMaxMut :: Int } deriving (Eq, Ord)
+newtype Window      = Window Int
 
 data Classification = Typical | Atypical | Normal deriving (Eq, Ord, Read, Show)
+
+data LeftRightPortion = LeftP | RightP deriving (Show)
 
 data Duplication = Duplication { _dupSubstring        :: Substring
                                , _dupLocations        :: [Position]

@@ -41,6 +41,7 @@ data Options = Options { input           :: Maybe String
                        , outputLabel     :: String
                        , minSize         :: Int
                        , minAtypicalSize :: Int
+                       , consecutive     :: Int
                        , minMut          :: Maybe Int
                        , distance        :: Int
                        , revCompl        :: Bool
@@ -81,8 +82,8 @@ options = Options
       <*> option auto
           ( long "min-size"
          <> short 's'
-         <> metavar "[5] | INT"
-         <> value 5
+         <> metavar "[15] | INT"
+         <> value 15
          <> help "The minimum size of a duplication"
           )
       <*> option auto
@@ -92,6 +93,15 @@ options = Options
          <> value 5
          <> help "The minimum size of spacer commonality with the exon\
                  \ to be considered not atypical"
+          )
+      <*> option auto
+          ( long "consecutive"
+         <> short 'c'
+         <> metavar "[2] | Double"
+         <> value 2
+         <> help "The minimum number of consecutive mutations in the spacer\
+                 \ to be considered a true atypical spacer rather than a\
+                 \ false positive"
           )
       <*> optional ( option auto
           ( long "min-mutations"
@@ -158,6 +168,7 @@ mainFunc opts = do
                         . fmap ( flip ( getSpacer
                                         (revCompl opts)
                                         (MinSize $ minAtypicalSize opts)
+                                        (Consecutive $ consecutive opts)
                                       )
                                       (Query . fastaSeq $ fs)
                                . unLongestSubstring
