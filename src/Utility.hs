@@ -9,11 +9,14 @@ Collections the functions of general use in the program.
 
 module Utility
     ( fragmentSequence
+    , fragmentSequenceFiller
     , hammingList
+    , hamming
     , isOverlappingBySubstring
     , itdFalsePositive
     , spacerFalsePositive
     , consecutiveSpacerFalsePositive
+    , isConsecutive
     ) where
 
 -- Standard
@@ -39,9 +42,26 @@ fragmentSequence (Window w) = go []
                           . C.drop 1
                           $ xs
 
+-- | Fragment the sequence by a certain window length, adding filler
+fragmentSequenceFiller :: Window -> C.ByteString -> [Substring]
+fragmentSequenceFiller (Window w) =
+    go [] . flip C.append filler . C.append filler
+  where
+    filler = C.replicate (w - 1) '-'
+    go !acc xs
+        | C.null xs       = acc
+        | C.length xs < w = acc
+        | otherwise       = go (Substring (C.take w xs) : acc)
+                          . C.drop 1
+                          $ xs
+
 -- | Get the hamming list between two strings
 hammingList :: C.ByteString -> C.ByteString -> [Bool]
 hammingList xs = C.zipWith (==) xs
+
+-- | Get the hamming distance between two strings
+hamming :: C.ByteString -> C.ByteString -> Int
+hamming xs = length . filter (not . id) . hammingList xs
 
 -- | Check if positions overlap
 isOverlappingByPosition :: Window -> Position -> Position -> Bool

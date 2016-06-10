@@ -40,8 +40,9 @@ data Options = Options { input           :: Maybe String
                        , outputPlot      :: Maybe String
                        , outputLabel     :: String
                        , minSize         :: Int
-                       , minAtypicalSize :: Int
-                       , consecutive     :: Int
+                       , gaussWindow     :: Int
+                       , gaussTime       :: Double
+                       , gaussThreshold  :: Double
                        , minMut          :: Maybe Int
                        , distance        :: Int
                        , revCompl        :: Bool
@@ -87,21 +88,28 @@ options = Options
          <> help "The minimum size of a duplication"
           )
       <*> option auto
-          ( long "min-atypical-size"
-         <> short 'S'
-         <> metavar "[5] | INT"
-         <> value 5
-         <> help "The minimum size of spacer commonality with the exon\
-                 \ to be considered not atypical"
+          ( long "gaussian-window"
+         <> short 'w'
+         <> metavar "[4] | Double"
+         <> value 3
+         <> help "The window for the discrete gaussian kernel atypical spacer\
+                 \ determination"
           )
       <*> option auto
-          ( long "consecutive"
-         <> short 'c'
+          ( long "gaussian-time"
+         <> short 't'
          <> metavar "[2] | Double"
          <> value 2
-         <> help "The minimum number of consecutive mutations in the spacer\
-                 \ to be considered a true atypical spacer rather than a\
-                 \ false positive"
+         <> help "The time for the discrete gaussian kernel atypical spacer\
+                 \ determination"
+          )
+      <*> option auto
+          ( long "gaussian-threshold"
+         <> short 'T'
+         <> metavar "[0.4] | Double"
+         <> value 0.4
+         <> help "The cutoff to be considered a mutation for the discrete\
+                 \ gaussian kernel atypical spacer determination"
           )
       <*> optional ( option auto
           ( long "min-mutations"
@@ -167,8 +175,9 @@ mainFunc opts = do
                       join
                         . fmap ( flip ( getSpacer
                                         (revCompl opts)
-                                        (MinSize $ minAtypicalSize opts)
-                                        (Consecutive $ consecutive opts)
+                                        (Window $ gaussWindow opts)
+                                        (Time $ gaussTime opts)
+                                        (Threshold $ gaussThreshold opts)
                                       )
                                       (Query . fastaSeq $ fs)
                                . unLongestSubstring

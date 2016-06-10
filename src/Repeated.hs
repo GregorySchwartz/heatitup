@@ -9,7 +9,6 @@ Collections the functions pertaining to finding the longest repeated substring
 module Repeated
     ( longestRepeatedSubstring
     , longestRepeatedSubstringMutations
-    , longestRepeatedSubstringHamming
     ) where
 
 -- Standard
@@ -29,54 +28,6 @@ import Control.Lens
 -- Local
 import Types
 import Utility
-
-longestRepeatedSubstringHamming :: Maybe MaxMut
-                                -> MinSize
-                                -> Query
-                                -> Maybe LongestSubstring
-longestRepeatedSubstringHamming maxMut (MinSize minSize) (Query q) =
-    maximumByMay ( comparing ( C.length
-                             . unSubstring
-                             . _dupSubstring
-                             . unLongestSubstring
-                             )
-                 )
-        . catMaybes
-        . fmap ( \w -> longestRepeatedSubstringHammingWindow
-                       maxMut
-                       (Window w)
-                       (Query q)
-               )
-        $ [div (C.length q) 2, (div (C.length q) 2) - 1 .. minSize]
-
-longestRepeatedSubstringHammingWindow :: Maybe MaxMut
-                                      -> Window
-                                      -> Query
-                                      -> Maybe LongestSubstring
-longestRepeatedSubstringHammingWindow maxMut w =
-    fmap (LongestSubstring . snd)
-        . minimumByMay (comparing fst)
-        . filter valid
-        . hammingComparisons
-        . zip (fmap Position [0..])
-        . fragmentSequence w
-        . unQuery
-  where
-    valid (!x, !y) = (not . isOverlappingBySubstring $ y)
-                  && (fromMaybe (x <= 1) . fmap ((<=) x . unMaxMut) $ maxMut)
-
-hammingComparisons :: [(Position, Substring)] -> [(Int, Duplication)]
-hammingComparisons ls = hammingCompare <$> ls <*> ls
-  where
-    getHamming     = sum . fmap (\x -> if x then 0 else 1)
-    hammingCompare (p1, Substring s1) (p2, Substring s2) =
-        ( getHamming hamming
-        , Duplication (Substring s1) [p1, p2] (pos p1 ++ pos p2)
-        )
-      where
-        hamming     = hammingList s1 s2
-        pos (Position i) =
-            fmap (Position . fst) . filter (not . snd) . zip [i..] $ hamming
 
 longestRepeatedSubstringMutations :: Maybe MinMut
                                   -> [Position]

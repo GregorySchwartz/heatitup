@@ -31,6 +31,7 @@ newtype Substring   = Substring { unSubstring :: C.ByteString }
                     deriving (Eq, Show)
 newtype Length      = Length Int deriving (Show)
 newtype Distance    = Distance Int deriving (Show)
+newtype Threshold   = Threshold Double deriving (Show)
 newtype Percent     = Percent Double deriving (Show)
 newtype Consecutive = Consecutive Int deriving (Show)
 newtype Label       = Label C.ByteString
@@ -38,6 +39,8 @@ newtype MinSize     = MinSize Int
 newtype MinMut      = MinMut { unMinMut :: Int }
 newtype MaxMut      = MaxMut { unMaxMut :: Int } deriving (Eq, Ord)
 newtype Window      = Window Int
+newtype Signal      = Signal { unSignal :: [Double] } deriving (Eq, Ord, Show)
+newtype Time        = Time Double deriving (Show)
 
 data Classification = Typical | Atypical | Normal deriving (Eq, Ord, Read, Show)
 

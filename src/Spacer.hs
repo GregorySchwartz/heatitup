@@ -14,7 +14,10 @@ module Spacer
 
 -- Standard
 import Data.Maybe
+import Data.Ord
+import Data.List
 import qualified Data.Set as Set
+import Debug.Trace
 
 -- Cabal
 import qualified Data.ByteString.Char8 as C
@@ -26,12 +29,19 @@ import Control.Lens
 -- Local
 import Types
 import Utility
+import Diffusion
 
-getSpacer ::
-    Bool -> MinSize -> Consecutive -> Duplication -> Query -> Maybe Spacer
+getSpacer :: Bool
+          -> Window
+          -> Time
+          -> Threshold
+          -> Duplication
+          -> Query
+          -> Maybe Spacer
 getSpacer revCompl
-          minAtypicalSize
-          consecutive
+          window
+          time
+          threshold
           (Duplication { _dupSubstring = s, _dupLocations = [p1, p2] })
           q
     | C.null . unSubstring $ spacer = Nothing
@@ -39,9 +49,10 @@ getSpacer revCompl
         Just $
             Spacer { _spacerSubstring      = spacer
                    , _spacerLocation       = spacerPos
-                   , _spacerOtherLocations = otherSpacerPositions
-                                             minAtypicalSize
-                                             consecutive
+                   , _spacerOtherLocations = otherSpacerPositionsDiffusion
+                                             window
+                                             time
+                                             threshold
                                              spacerPos
                                              p1
                                              p2
@@ -65,6 +76,68 @@ mutateQuery (Just (Position p)) (Substring s) q =
   where
     beginning = take p q
     end       = drop (p + C.length s) $ q
+
+-- | Get the most similar sequence to a base sequence from the left or
+-- right substring, along with the base fragment
+minHammingLeftRight ::
+    C.ByteString
+        -> Substring
+        -> Substring 
+        -> Either (Substring, C.ByteString) (Substring, C.ByteString)
+minHammingLeftRight base (Substring s) (Substring spacer) =
+    either (Left . (Substring leftSeq,)) (Right . (Substring rightSeq,))
+        . minimumBy (comparing $ either (hamming leftSeq) (hamming rightSeq))
+        . concat
+        $ [ fmap (Left . unSubstring) . baseFragments $ leftSeq
+          , fmap (Right . unSubstring) . baseFragments $ rightSeq
+          ]
+  where
+    baseFragments xs = fragmentSequenceFiller (Window . C.length $ xs) $ base
+    leftSeq          = getLeftRightFull LeftP spacer s
+    rightSeq         = getLeftRightFull RightP spacer s
+
+-- | Get the positions that are different between the spacer and the FLT3
+-- sequence
+otherSpacerPositionsDiffusion :: Window
+                              -> Time
+                              -> Threshold
+                              -> Position
+                              -> Position
+                              -> Position
+                              -> C.ByteString
+                              -> Substring
+                              -> Substring
+                              -> [Position]
+otherSpacerPositionsDiffusion window
+                              time
+                              (Threshold gaussThresh)
+                              (Position spacerPos)
+                              (Position p1)
+                              (Position p2)
+                              base
+                              (Substring s)
+                              (Substring spacer) =
+    fmap Position
+        . Set.toList
+        . Set.intersection (Set.fromList spacerPoss)
+        . Set.fromList
+        . either (fmap (+ p1)) (fmap (+ spacerPos))
+        . over both atypicalPositions
+        $ minHamming
+  where
+    atypicalPositions =
+        fmap fst
+            . filter snd
+            . zip [0..]
+            . fmap (>= gaussThresh)
+            . unSignal
+            . diffusedSeq
+    diffusedSeq (joinedSubstring, baseFragment) =
+        diffuse window time
+            . mutationSignal baseFragment
+            $ joinedSubstring 
+    minHamming = minHammingLeftRight base (Substring s) (Substring spacer)
+    spacerPoss  = [spacerPos .. p2 - 1]
 
 -- | Get the positions that are different between the spacer and the FLT3
 -- sequence
@@ -138,6 +211,15 @@ leftOrRightFound (Substring base) (Substring spacer) (Substring s) (Length l) =
     newString2 = C.drop l original2
     original1  = getLeftRightPortion LeftP spacer s
     original2  = getLeftRightPortion RightP spacer s
+
+-- | Get the string plus a the entirety of another string and
+-- concatenate them
+getLeftRightFull :: LeftRightPortion
+                 -> C.ByteString
+                 -> C.ByteString
+                 -> C.ByteString
+getLeftRightFull LeftP x y  = C.append y x
+getLeftRightFull RightP x y = C.append x y
 
 -- | Get the string plus a portion (1 / 3) of another string and
 -- concatenate them
