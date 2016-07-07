@@ -1,8 +1,8 @@
 {- Spacer
 Gregory W. Schwartz
 
-Collections the functions pertaining to finding the spacer for FLT3
-internal tandem duplications.
+Collections the functions pertaining to finding the spacer in-between
+duplications.
 -}
 
 {-# LANGUAGE BangPatterns #-}
@@ -17,7 +17,6 @@ import Data.Maybe
 import Data.Ord
 import Data.List
 import qualified Data.Set as Set
-import Debug.Trace
 
 -- Cabal
 import qualified Data.ByteString.Char8 as C
@@ -35,6 +34,7 @@ getSpacer :: Bool
           -> Window
           -> Time
           -> Threshold
+          -> ReferenceSeq
           -> Duplication
           -> Query
           -> Maybe Spacer
@@ -42,6 +42,7 @@ getSpacer revCompl
           window
           time
           threshold
+          (ReferenceSeq refSeq)
           (Duplication { _dupSubstring = s, _dupLocations = [p1, p2] })
           q
     | C.null . unSubstring $ spacer = Nothing
@@ -56,7 +57,7 @@ getSpacer revCompl
                                              spacerPos
                                              p1
                                              p2
-                                             (C.pack newFLT3)
+                                             refSeq
                                              s
                                              spacer
                    }
@@ -64,9 +65,6 @@ getSpacer revCompl
     spacerPos = Position $ unPosition p1 + dupLen
     spacer    = inbetweenSubstring (Length dupLen) p1 p2 q
     dupLen    = C.length . unSubstring $ s
-    newFLT3   = whichFLT3 revCompl
-    whichFLT3 True  = flt3Exon14RevCompl
-    whichFLT3 False = flt3Exon14
 
 -- | Change a string to be identical with the one duplication position
 mutateQuery :: Maybe Position -> Substring -> String -> String
@@ -96,8 +94,8 @@ minHammingLeftRight base (Substring s) (Substring spacer) =
     leftSeq          = getLeftRightFull LeftP spacer s
     rightSeq         = getLeftRightFull RightP spacer s
 
--- | Get the positions that are different between the spacer and the FLT3
--- sequence
+-- | Get the positions that are different between the spacer and the
+-- reference sequence
 otherSpacerPositionsDiffusion :: Window
                               -> Time
                               -> Threshold
@@ -139,8 +137,8 @@ otherSpacerPositionsDiffusion window
     minHamming = minHammingLeftRight base (Substring s) (Substring spacer)
     spacerPoss  = [spacerPos .. p2 - 1]
 
--- | Get the positions that are different between the spacer and the FLT3
--- sequence
+-- | Get the positions that are different between the spacer and the
+-- reference sequence
 otherSpacerPositions :: MinSize
                      -> Consecutive
                      -> Position
@@ -235,10 +233,3 @@ getLeftRightPortion RightP x y = C.append x . C.take (C.length y `div` 3) $ y
 inbetweenSubstring :: Length -> Position -> Position -> Query -> Substring
 inbetweenSubstring (Length n) (Position x) (Position y) =
     Substring . C.take (y - x - n) . C.drop (x + n) . unQuery
-
--- | The FLT3 Exon 14 sequence
-flt3Exon14 :: String
-flt3Exon14 = "CAAACTCTAAATTTTCTCTTGGAAACTCCCATTTGAGATCATATTCATATTCTCTGAAATCAACGTAGAAGTACTCATTATCTGAGGAGCCGGTCACCTGTACCATCTGTAGCTGGCTTTCATACCTAAATTG"
-
-flt3Exon14RevCompl :: String
-flt3Exon14RevCompl = "CAATTTAGGTATGAAAGCCAGCTACAGATGGTACAGGTGACCGGCTCCTCAGATAATGAGTACTTCTACGTTGATTTCAGAGAATATGAATATGATCTCAAATGGGAGTTTCCAAGAGAAAATTTAGAGTTTG"
