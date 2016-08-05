@@ -50,7 +50,7 @@ data Options = Options { input           :: Maybe String
                        , gaussThreshold  :: Double
                        , minMut          :: Maybe Int
                        , distance        :: Int
-                       , revCompl        :: Bool
+                       , revComplFlag    :: Bool
                        }
 
 -- | Command line options
@@ -183,7 +183,7 @@ mainFunc opts = do
 
     IO.withFile (refInput opts) IO.ReadMode $ \hRefIn -> do
 
-        refMap <- fmap (toReferenceMap (Field . refField $ opts))
+        refMap <- fmap (toReferenceMap (Field 1))
                 . readReference
                 $ hRefIn
 
@@ -202,7 +202,6 @@ mainFunc opts = do
                       , _spacer      =
                           join
                             . fmap ( flip ( getSpacer
-                                            (revCompl opts)
                                             (Window $ gaussWindow opts)
                                             (Time $ gaussTime opts)
                                             (Threshold $ gaussThreshold opts)
@@ -232,7 +231,9 @@ mainFunc opts = do
                        $ refMap
             falsePositiveITDCheck (!itd, !fs) =
                 if not
-                 . itdFalsePositive (revCompl opts) (Distance $ distance opts)
+                 . itdFalsePositive
+                    (revComplFlag opts)
+                    (Distance $ distance opts)
                  $ itd
                     then (itd, fs)
                     else (itd { _duplication = Nothing, _spacer = Nothing }, fs)

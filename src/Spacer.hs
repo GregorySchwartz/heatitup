@@ -30,16 +30,14 @@ import Types
 import Utility
 import Diffusion
 
-getSpacer :: Bool
-          -> Window
+getSpacer :: Window
           -> Time
           -> Threshold
           -> ReferenceSeq
           -> Duplication
           -> Query
           -> Maybe Spacer
-getSpacer revCompl
-          window
+getSpacer window
           time
           threshold
           (ReferenceSeq refSeq)
