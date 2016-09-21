@@ -15,6 +15,7 @@ module Plot
 
 -- Standard
 import Data.Maybe
+import Data.List
 
 -- Cabal
 import qualified Data.ByteString.Char8 as C
@@ -40,14 +41,15 @@ plotNucleotide nuc mut backG = text nuc # fc (colors "black")
                             <> square 1 # fc backG # lc backG
 
 plotITD fs itd = hcat
-               . (:) ( text (take 20 . C.unpack . fastaHeader $ fs)
-                    <> rect 20 1 # lw none
+               . (:) ( text label
+                    <> rect (genericLength label) 1 # lw none
                      )
                . fmap (uncurry plotNuc)
                . zip (fmap Position [0..])
                . C.unpack
                . unQuery
   where
+    label       = takeWhile (/= '|') . C.unpack . fastaHeader $ fs
     dupLen      = fromMaybe 0
                 . fmap (C.length . unSubstring . _dupSubstring)
                 . _duplication

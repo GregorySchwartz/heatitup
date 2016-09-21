@@ -84,7 +84,8 @@ options = Options
          <> short 'O'
          <> metavar "FILE"
          <> help "The output file for the plot. Each new plot gets a new number\
-                 \ on it: output_1.svg, output_2.svg, etc."
+                 \ on it: output_1.svg, output_2.svg, etc. Each plot uses the\
+                 \ first entry in the fasta header as the label."
           )
         )
       <*> strOption
