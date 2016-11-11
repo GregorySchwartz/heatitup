@@ -13,6 +13,7 @@ import Data.Maybe
 import qualified Data.Map.Strict as Map
 import qualified System.IO as IO
 import Control.Monad
+import Data.Semigroup ((<>))
 
 -- Cabal
 import qualified Data.Vector as V
