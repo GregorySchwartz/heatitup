@@ -61,6 +61,8 @@ longestRepeatedSubstringMutations minMut muts alphabet minSize q = do
         if substringLen forward >= substringLen backward
             then newQuery mutateQueryForward
             else newQuery mutateQueryBackward
+    forBackBetter Nothing (Just backward) = backward
+    forBackBetter (Just forward) Nothing  = forward
     forBackBetter (Just forward) (Just backward) =
         if substringLen forward >= substringLen backward
             then forward
