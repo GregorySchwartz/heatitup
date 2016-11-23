@@ -24,8 +24,13 @@ import Data.Fasta.ByteString
 import Types
 
 -- | Put the ITD type in a record to be converted to a csv row
-printITD :: Label -> FastaSequence -> Classification -> ITD -> PrintITD
-printITD (Label l) fs classification itd =
+printITD :: Label
+         -> Position
+         -> FastaSequence
+         -> Classification
+         -> ITD
+         -> PrintITD
+printITD (Label l) p fs classification itd =
     PrintITD { label           = l
              , fHeader         = fastaHeader fs
              , fSequence       = fastaSeq fs
@@ -34,11 +39,11 @@ printITD (Label l) fs classification itd =
                                . _duplication
                                $ itd
              , dLocations      = fromMaybe ""
-                               . fmap (possToString . _dupLocations)
+                               . fmap (possToString p . _dupLocations)
                                . _duplication
                                $ itd
              , dMutations      = fromMaybe ""
-                               . fmap (possToString . _dupMutations)
+                               . fmap (possToString p . _dupMutations)
                                . _duplication
                                $ itd
              , sSubstring      = fromMaybe ""
@@ -47,22 +52,21 @@ printITD (Label l) fs classification itd =
                                $ itd
              , sLocation       =
                  fromMaybe ""
-                    . fmap (posToString . _spacerLocation)
+                    . fmap (posToString p . _spacerLocation)
                     . _spacer
                     $ itd
              , sOtherLocations = fromMaybe ""
-                               . fmap (possToString . _spacerOtherLocations)
+                               . fmap (possToString p . _spacerOtherLocations)
                                . _spacer
                                $ itd
              , classification  = C.pack . show $ classification
              }
 
--- | Convert a list of positions to a string. Add 1 to them because DNA is
--- 1 indexed
-possToString :: [Position] -> C.ByteString
-possToString = C.intercalate "/" . fmap posToString
+-- | Convert a list of positions to a string.
+possToString :: Position -> [Position] -> C.ByteString
+possToString p = C.intercalate "/" . fmap (posToString p)
 
--- | Convert a position to a string. Add 1 to them because DNA is
--- 1 indexed
-posToString :: Position -> C.ByteString
-posToString = CL.toStrict . CS.show . (+ 1) . unPosition
+-- | Convert a position to a string. Add the starting point of the read
+-- (converts to 1 indexed).
+posToString :: Position -> Position -> C.ByteString
+posToString p = CL.toStrict . CS.show . unPosition . (+ p)

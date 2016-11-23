@@ -45,6 +45,7 @@ data Options = Options { input           :: Maybe String
                        , outputPlot      :: Maybe String
                        , outputLabel     :: String
                        , refField        :: Int
+                       , posField        :: Maybe Int
                        , minSize         :: Int
                        , gaussWindow     :: Int
                        , gaussTime       :: Double
@@ -104,6 +105,14 @@ options = Options
          <> help "The field in each input header that contains the reference\
                  \ accession number to compare to."
           )
+      <*> optional ( option auto
+          ( long "position-field"
+         <> short 'p'
+         <> metavar "[Nothing] | INT"
+         <> help "The field in each input header that contains the starting\
+                 \ position of the read. Added to the annotations."
+          )
+        )
       <*> option auto
           ( long "min-size"
          <> short 's'
@@ -240,8 +249,23 @@ mainFunc opts = do
                     then (itd, fs)
                     else (itd { _duplication = Nothing, _spacer = Nothing }, fs)
             getClass (!itd, !fs)     = (classifyITD itd, itd, fs)
+            addPos fs                =
+                maybe (Position 1) (\ x -> Position
+                                         . read
+                                         . C.unpack
+                                         . (!! (x - 1))
+                                         . C.split '|'
+                                         . fastaHeader $ fs
+                                   )
+                    . posField
+                    $ opts
             printRow (!c, !itd, !fs) =
-                printITD (Label . C.pack . outputLabel $ opts) fs c itd
+                printITD
+                    (Label . C.pack . outputLabel $ opts)
+                    (addPos fs)
+                    fs
+                    c
+                    itd
             headerOrder              = V.fromList [ C.pack "label"
                                                   , C.pack "fHeader"
                                                   , C.pack "fSequence"

@@ -78,7 +78,7 @@ mutateQuery (Just (Position p)) (Substring s) q =
 minHammingLeftRight ::
     C.ByteString
         -> Substring
-        -> Substring 
+        -> Substring
         -> Either (Substring, C.ByteString) (Substring, C.ByteString)
 minHammingLeftRight base (Substring s) (Substring spacer) =
     either (Left . (Substring leftSeq,)) (Right . (Substring rightSeq,))
@@ -131,7 +131,7 @@ otherSpacerPositionsDiffusion window
     diffusedSeq (joinedSubstring, baseFragment) =
         diffuse window time
             . mutationSignal baseFragment
-            $ joinedSubstring 
+            $ joinedSubstring
     minHamming = minHammingLeftRight base (Substring s) (Substring spacer)
     spacerPoss  = [spacerPos .. p2 - 1]
 
@@ -199,7 +199,7 @@ leftOrRightFound :: Substring
 leftOrRightFound (Substring base) (Substring spacer) (Substring s) (Length l) =
     if C.isInfixOf newString1 base
         then Just . Left . Length $ l
-        else if C.isInfixOf newString2 base 
+        else if C.isInfixOf newString2 base
             then Just . Right . Length $ l
             else Nothing
   where
