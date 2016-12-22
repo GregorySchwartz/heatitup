@@ -81,7 +81,7 @@ itdFalsePositive (Blacklist blacklist) (Distance d) itd =
     fromMaybe False . fmap (check . getDupString) . _duplication $ itd
   where
     check dup =
-        F.all ((<= d) . levenshteinDistance defaultEditCosts dup) blacklist
+        F.any ((<= d) . levenshteinDistance defaultEditCosts dup) blacklist
     getDupString = C.unpack . unSubstring . _dupSubstring
 
 -- | Check if the spacer is a false positive based on the Levenshtein
