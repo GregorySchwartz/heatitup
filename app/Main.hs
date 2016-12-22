@@ -40,7 +40,7 @@ import Print
 
 -- | Command line arguments
 data Options = Options { input           :: Maybe String
-                       , refInput        :: String
+                       , refInput        :: Maybe String
                        , output          :: Maybe String
                        , outputPlot      :: Maybe String
                        , outputLabel     :: String
@@ -65,15 +65,16 @@ options = Options
          <> help "The input file"
           )
         )
-      <*> strOption
+      <*> optional ( strOption
           ( long "reference-input"
          <> short 'I'
-         <> metavar "FILE"
+         <> metavar "[Nothing] | FILE"
          <> help "The input file containing the reference sequences to compare\
                  \ to. The first entry in the field must be the accession and\
                  \ match the requested field from reference-field for the\
-                 \ input."
+                 \ input. With no supplied file, no spacer will be annotated."
           )
+        )
       <*> optional ( strOption
           ( long "output"
          <> short 'o'
@@ -183,6 +184,21 @@ plotITDM opts (!count, (!itd, !fs)) = do
 
     return (itd, fs)
 
+getReferenceSeq :: Int -> FastaSequence -> ReferenceMap -> ReferenceSeq
+getReferenceSeq field fs = ReferenceSeq
+                . fastaSeq
+                . fromMaybe ( error
+                            . (++) "Reference accession field not found in: "
+                            . C.unpack
+                            . fastaHeader
+                            $ fs
+                            )
+                . Map.lookup ( Accession
+                            . getField field '|'
+                            $ fs
+                            )
+                . unReferenceMap
+
 mainFunc :: Options -> IO ()
 mainFunc opts = do
     hIn  <- case input opts of
@@ -192,106 +208,100 @@ mainFunc opts = do
                 Nothing  -> return IO.stdout
                 (Just x) -> IO.openFile x IO.WriteMode
 
-    IO.withFile (refInput opts) IO.ReadMode $ \hRefIn -> do
+    refMap <- case refInput opts of
+                Nothing  -> return Nothing
+                (Just x) -> IO.withFile x IO.ReadMode $ \hRefIn ->
+                    fmap (Just . toReferenceMap (Field 1))
+                        . readReference
+                        $ hRefIn
 
-        refMap <- fmap (toReferenceMap (Field 1))
-                . readReference
-                $ hRefIn
-
-        let getDup fs = ( longestRepeatedSubstringMutations
-                          (fmap MinMut . minMut $ opts)
-                          []
-                          "ATCG"
-                          (MinSize . minSize $ opts)
-                          . Query
-                          . fastaSeq
-                          $ fs
-                        , fs
-                        )
-            getSpace (!dup, !fs) =
-                ( ITD { _duplication = fmap unLongestSubstring dup
-                      , _spacer      =
-                          join
-                            . fmap ( flip ( getSpacer
-                                            (Window $ gaussWindow opts)
-                                            (Time $ gaussTime opts)
-                                            (Threshold $ gaussThreshold opts)
-                                            refSeq
-                                          )
-                                          (Query . fastaSeq $ fs)
-                                   . unLongestSubstring
-                                   )
-                            $ dup
-                      }
-                , fs
-                )
-              where
-                refSeq = ReferenceSeq
-                       . fastaSeq
-                       . fromMaybe ( error
-                                   . (++) "Reference accession field not found in: "
-                                   . C.unpack
-                                   . fastaHeader
-                                   $ fs
-                                   )
-                       . Map.lookup ( Accession
-                                    . getField (refField opts) '|'
-                                    $ fs
-                                    )
-                       . unReferenceMap
-                       $ refMap
-            falsePositiveITDCheck (!itd, !fs) =
-                if not
-                 . itdFalsePositive
-                    (revComplFlag opts)
-                    (Distance $ distance opts)
-                 $ itd
-                    then (itd, fs)
-                    else (itd { _duplication = Nothing, _spacer = Nothing }, fs)
-            getClass (!itd, !fs)     = (classifyITD itd, itd, fs)
-            addPos fs                =
-                maybe (Position 1) (\ x -> Position
-                                         . read
-                                         . C.unpack
-                                         . (!! (x - 1))
-                                         . C.split '|'
-                                         . fastaHeader $ fs
-                                   )
-                    . posField
-                    $ opts
-            printRow (!c, !itd, !fs) =
-                printITD
-                    (Label . C.pack . outputLabel $ opts)
-                    (addPos fs)
-                    fs
-                    c
-                    itd
-            headerOrder              = V.fromList [ C.pack "label"
-                                                  , C.pack "fHeader"
-                                                  , C.pack "fSequence"
-                                                  , C.pack "dSubstring"
-                                                  , C.pack "dLocations"
-                                                  , C.pack "dMutations"
-                                                  , C.pack "sSubstring"
-                                                  , C.pack "sLocation"
-                                                  , C.pack "sOtherLocations"
-                                                  , C.pack "classification"
-                                                  ]
-
-        runEffect $ ( ( P.zip (each [1..])
-                            ( pipesFasta (PB.fromHandle hIn)
-                          >-> P.map (getSpace . getDup)
-                            )
-                      )
-                    >-> P.mapM (plotITDM opts)
-                    >-> P.map (printRow . getClass . falsePositiveITDCheck)
-                    >-> encodeByName headerOrder
+    let getDup fs = ( longestRepeatedSubstringMutations
+                        (fmap MinMut . minMut $ opts)
+                        []
+                        "ATCG"
+                        (MinSize . minSize $ opts)
+                        . Query
+                        . fastaSeq
+                        $ fs
+                    , fs
                     )
-                >-> PB.toHandle hOut
+        getSpace Nothing (!dup, !fs) =
+            ( ITD { _duplication = fmap unLongestSubstring dup
+                  , _spacer      = Nothing
+                  }
+            , fs
+            )
+        getSpace (Just rMap) (!dup, !fs) =
+            ( ITD { _duplication = fmap unLongestSubstring dup
+                    , _spacer      =
+                        join
+                        . fmap ( flip ( getSpacer
+                                        (Window $ gaussWindow opts)
+                                        (Time $ gaussTime opts)
+                                        (Threshold $ gaussThreshold opts)
+                                        refSeq
+                                        )
+                                        (Query . fastaSeq $ fs)
+                                . unLongestSubstring
+                                )
+                        $ dup
+                    }
+            , fs
+            )
+            where
+              refSeq = getReferenceSeq (refField opts) fs rMap
+        falsePositiveITDCheck (!itd, !fs) =
+            if not
+                . itdFalsePositive
+                (revComplFlag opts)
+                (Distance $ distance opts)
+                $ itd
+                then (itd, fs)
+                else (itd { _duplication = Nothing, _spacer = Nothing }, fs)
+        getClass (!itd, !fs)     = (classifyITD itd, itd, fs)
+        addPos fs                =
+            maybe (Position 1) (\ x -> Position
+                                        . read
+                                        . C.unpack
+                                        . (!! (x - 1))
+                                        . C.split '|'
+                                        . fastaHeader $ fs
+                                )
+                . posField
+                $ opts
+        printRow (!c, !itd, !fs) =
+            printITD
+                (Label . C.pack . outputLabel $ opts)
+                (addPos fs)
+                fs
+                c
+                itd
+        headerOrder              = V.fromList [ C.pack "label"
+                                                , C.pack "fHeader"
+                                                , C.pack "fSequence"
+                                                , C.pack "dSubstring"
+                                                , C.pack "dLocations"
+                                                , C.pack "dMutations"
+                                                , C.pack "sSubstring"
+                                                , C.pack "sLocation"
+                                                , C.pack "sOtherLocations"
+                                                , C.pack "classification"
+                                                ]
 
-        -- Finish up by closing file if written
-        unless (null . input $ opts) (IO.hClose hIn)
-        unless (null . output $ opts) (IO.hClose hOut)
+    runEffect $ ( ( P.zip (each [1..])
+                        ( pipesFasta (PB.fromHandle hIn)
+                        >-> P.map (getSpace refMap . getDup)
+                        )
+                    )
+                >-> P.mapM (plotITDM opts)
+                >-> P.map (printRow . getClass . falsePositiveITDCheck)
+                >-> encodeByName headerOrder
+                )
+            >-> PB.toHandle hOut
+
+    -- Finish up by closing file if written
+    unless (null . input $ opts) (IO.hClose hIn)
+    unless (null . output $ opts) (IO.hClose hOut)
 
 main :: IO ()
 main = execParser opts >>= mainFunc
