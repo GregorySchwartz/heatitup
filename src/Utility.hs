@@ -23,6 +23,7 @@ module Utility
 import Data.Maybe
 import Data.Char
 import Data.List
+import qualified Data.Foldable as F
 
 -- Cabal
 import qualified Data.ByteString.Char8 as C
@@ -75,17 +76,13 @@ isOverlappingBySubstring _ =
     error "Multiple locations found when checking for overlap"
 
 -- | Check if the duplication is a false positive
-itdFalsePositive :: Bool -> Distance -> ITD -> Bool
-itdFalsePositive rev (Distance d) itd =
-    fromMaybe False . fmap (check (bad rev)) . _duplication $ itd
+itdFalsePositive :: Blacklist -> Distance -> ITD -> Bool
+itdFalsePositive (Blacklist blacklist) (Distance d) itd =
+    fromMaybe False . fmap (check . getDupString) . _duplication $ itd
   where
-    bad True  = "AATTTAG"
-    bad False = "CTAAATT"
-    check s = (<= d)
-            . levenshteinDistance defaultEditCosts s
-            . C.unpack
-            . unSubstring
-            . _dupSubstring
+    check dup =
+        F.all ((<= d) . levenshteinDistance defaultEditCosts dup) blacklist
+    getDupString = C.unpack . unSubstring . _dupSubstring
 
 -- | Check if the spacer is a false positive based on the Levenshtein
 -- distance (ignoring the insertions and deletions). The threshold here is

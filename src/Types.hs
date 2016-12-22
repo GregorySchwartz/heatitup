@@ -11,8 +11,9 @@ Collections the types used in the program
 module Types where
 
 -- Standard
-import GHC.Generics
+import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
+import GHC.Generics
 
 -- Cabal
 import qualified Data.ByteString.Char8 as C
@@ -45,6 +46,7 @@ newtype Signal       = Signal { unSignal :: [Double] } deriving (Eq, Ord, Show)
 newtype Time         = Time Double deriving (Show)
 newtype Field        = Field Int deriving (Show)
 newtype Accession    = Accession C.ByteString deriving (Show, Eq, Ord)
+newtype Blacklist    = Blacklist (Set.Set String) deriving (Show)
 newtype ReferenceSeq = ReferenceSeq C.ByteString deriving (Show)
 newtype ReferenceMap = ReferenceMap { unReferenceMap
                                    :: (Map.Map Accession FastaSequence)

@@ -5,7 +5,7 @@ Collections the functions pertaining to the loading of fasta files.
 -}
 
 module Load
-    ( readReference
+    ( readFasta
     , toReferenceMap
     ) where
 
@@ -22,9 +22,9 @@ import Data.Fasta.ByteString
 -- Local
 import Types
 
--- | Load the input file containing the reference sequences.
-readReference :: IO.Handle -> IO [FastaSequence]
-readReference hRefIn =
+-- | Load an input fasta file.
+readFasta :: IO.Handle -> IO [FastaSequence]
+readFasta hRefIn =
     runEffect $ P.toListM . pipesFasta . PB.fromHandle $ hRefIn
 
 -- | Convert a list of reference sequences to a map of their accessions

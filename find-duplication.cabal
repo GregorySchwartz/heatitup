@@ -1,5 +1,5 @@
 name:                find-duplication
-version:             0.4.0.0
+version:             0.4.1.0
 synopsis:            Find duplications in a sequence
 description:         Please see README.md
 homepage:            http://github.com/GregorySchwartz/find-duplication#readme

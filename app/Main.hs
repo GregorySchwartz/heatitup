@@ -10,6 +10,7 @@ module Main where
 
 -- Standard
 import Data.Maybe
+import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 import qualified System.IO as IO
 import Control.Monad
@@ -41,6 +42,7 @@ import Print
 -- | Command line arguments
 data Options = Options { input           :: Maybe String
                        , refInput        :: Maybe String
+                       , blacklistInput  :: Maybe String
                        , output          :: Maybe String
                        , outputPlot      :: Maybe String
                        , outputLabel     :: String
@@ -52,7 +54,6 @@ data Options = Options { input           :: Maybe String
                        , gaussThreshold  :: Double
                        , minMut          :: Maybe Int
                        , distance        :: Int
-                       , revComplFlag    :: Bool
                        }
 
 -- | Command line options
@@ -73,6 +74,15 @@ options = Options
                  \ to. The first entry in the field must be the accession and\
                  \ match the requested field from reference-field for the\
                  \ input. With no supplied file, no spacer will be annotated."
+          )
+        )
+      <*> optional ( strOption
+          ( long "blacklist-input"
+         <> short 'b'
+         <> metavar "[Nothing] | FILE"
+         <> help "The input fasta file containing possible false positives --\
+                 \ sequences which may be duplicate nucleotides in the\
+                 \ reference sequence."
           )
         )
       <*> optional ( strOption
@@ -160,12 +170,8 @@ options = Options
          <> help "The minimum Levenshtein distance to the false positive\
                  \ checker. If the distance to the false positive string\
                  \ is less than this number, the duplication is considered\
-                 \ a false positive."
-          )
-      <*> switch
-          ( long "reverse-complement"
-         <> short 'r'
-         <> help "Whether the sequences are the reverse complement FLT3 Exon 14"
+                 \ a false positive. Compares candidates against each sequence\
+                 \ in --blacklist-input"
           )
 
 plotITDM :: Options -> (Int, (ITD, FastaSequence)) -> IO (ITD, FastaSequence)
@@ -212,7 +218,14 @@ mainFunc opts = do
                 Nothing  -> return Nothing
                 (Just x) -> IO.withFile x IO.ReadMode $ \hRefIn ->
                     fmap (Just . toReferenceMap (Field 1))
-                        . readReference
+                        . readFasta
+                        $ hRefIn
+                        
+    blacklist <- case blacklistInput opts of
+                Nothing  -> return . Blacklist $ Set.empty
+                (Just x) -> IO.withFile x IO.ReadMode $ \hRefIn ->
+                    fmap (Blacklist . Set.fromList . fmap (C.unpack . fastaSeq))
+                        . readFasta
                         $ hRefIn
 
     let getDup fs = ( longestRepeatedSubstringMutations
@@ -251,11 +264,7 @@ mainFunc opts = do
             where
               refSeq = getReferenceSeq (refField opts) fs rMap
         falsePositiveITDCheck (!itd, !fs) =
-            if not
-                . itdFalsePositive
-                (revComplFlag opts)
-                (Distance $ distance opts)
-                $ itd
+            if not . itdFalsePositive blacklist (Distance $ distance opts) $ itd
                 then (itd, fs)
                 else (itd { _duplication = Nothing, _spacer = Nothing }, fs)
         getClass (!itd, !fs)     = (classifyITD itd, itd, fs)
