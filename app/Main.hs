@@ -220,7 +220,7 @@ mainFunc opts = do
                     fmap (Just . toReferenceMap (Field 1))
                         . readFasta
                         $ hRefIn
-                        
+
     blacklist <- case blacklistInput opts of
                 Nothing  -> return . Blacklist $ Set.empty
                 (Just x) -> IO.withFile x IO.ReadMode $ \hRefIn ->
@@ -229,6 +229,8 @@ mainFunc opts = do
                         $ hRefIn
 
     let getDup fs = ( longestRepeatedSubstringMutations
+                        blacklist
+                        (Distance $ distance opts)
                         (fmap MinMut . minMut $ opts)
                         []
                         "ATCG"
@@ -263,10 +265,6 @@ mainFunc opts = do
             )
             where
               refSeq = getReferenceSeq (refField opts) fs rMap
-        falsePositiveITDCheck (!itd, !fs) =
-            if not . itdFalsePositive blacklist (Distance $ distance opts) $ itd
-                then (itd, fs)
-                else (itd { _duplication = Nothing, _spacer = Nothing }, fs)
         getClass (!itd, !fs)     = (classifyITD itd, itd, fs)
         addPos fs                =
             maybe (Position 1) (\ x -> Position
@@ -303,7 +301,7 @@ mainFunc opts = do
                         )
                     )
                 >-> P.mapM (plotITDM opts)
-                >-> P.map (printRow . getClass . falsePositiveITDCheck)
+                >-> P.map (printRow . getClass)
                 >-> encodeByName headerOrder
                 )
             >-> PB.toHandle hOut

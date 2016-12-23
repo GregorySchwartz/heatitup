@@ -75,14 +75,10 @@ isOverlappingBySubstring (Duplication s [p1, p2] _) =
 isOverlappingBySubstring _ =
     error "Multiple locations found when checking for overlap"
 
--- | Check if the duplication is a false positive
-itdFalsePositive :: Blacklist -> Distance -> ITD -> Bool
-itdFalsePositive (Blacklist blacklist) (Distance d) itd =
-    fromMaybe False . fmap (check . getDupString) . _duplication $ itd
-  where
-    check dup =
-        F.any ((<= d) . levenshteinDistance defaultEditCosts dup) blacklist
-    getDupString = C.unpack . unSubstring . _dupSubstring
+-- | Check if a string is a false positive
+itdFalsePositive :: Blacklist -> Distance -> String -> Bool
+itdFalsePositive (Blacklist blacklist) (Distance d) dup =
+    F.any ((<= d) . levenshteinDistance defaultEditCosts dup) blacklist
 
 -- | Check if the spacer is a false positive based on the Levenshtein
 -- distance (ignoring the insertions and deletions). The threshold here is

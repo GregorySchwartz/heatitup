@@ -29,14 +29,17 @@ import Control.Lens
 import Types
 import Utility
 
-longestRepeatedSubstringMutations :: Maybe MinMut
-                                  -> [Position]
-                                  -> T.Alphabet Char
-                                  -> MinSize
-                                  -> Query
-                                  -> Maybe LongestSubstring
-longestRepeatedSubstringMutations minMut muts alphabet minSize q = do
-    longest <- longestRepeatedSubstring alphabet minSize q
+longestRepeatedSubstringMutations
+    :: Blacklist
+    -> Distance
+    -> Maybe MinMut
+    -> [Position]
+    -> T.Alphabet Char
+    -> MinSize
+    -> Query
+    -> Maybe LongestSubstring
+longestRepeatedSubstringMutations blacklist distance minMut muts alphabet minSize q = do
+    longest <- longestRepeatedSubstring blacklist distance alphabet minSize q
 
     result <- case (minMut, getNextLongestF longest, getNextLongestB longest) of
                   (Nothing, _, _)       -> Just longest
@@ -46,6 +49,8 @@ longestRepeatedSubstringMutations minMut muts alphabet minSize q = do
                      - substringLen longest < mm
                         then addMuts longest
                         else longestRepeatedSubstringMutations
+                             blacklist
+                             distance
                              minMut
                              (snd . (forBackQuery forward backward) longest $ q)
                              alphabet
@@ -73,14 +78,16 @@ longestRepeatedSubstringMutations minMut muts alphabet minSize q = do
             . unLongestSubstring
     substringLen      =
         C.length . unSubstring . _dupSubstring . unLongestSubstring
-    getNextLongestF l = longestRepeatedSubstring alphabet minSize
-                      . fst
-                      . newQuery mutateQueryForward l
-                      $ q
-    getNextLongestB l = longestRepeatedSubstring alphabet minSize
-                      . fst
-                      . newQuery mutateQueryBackward l
-                      $ q
+    getNextLongestF l =
+        longestRepeatedSubstring blacklist distance alphabet minSize
+            . fst
+            . newQuery mutateQueryForward l
+            $ q
+    getNextLongestB l =
+        longestRepeatedSubstring blacklist distance alphabet minSize
+            . fst
+            . newQuery mutateQueryBackward l
+            $ q
     newQuery f (LongestSubstring l) = f
                                       (head . _dupLocations $ l)
                                       (last . _dupLocations $ l)
@@ -120,17 +127,32 @@ mutateQueryBackward (Position i) (Position j) (Substring s) (Query q) =
 
 -- | Return the longest repeated substring of a list, specifically with an
 -- alphabet
-longestRepeatedSubstring ::
-    T.Alphabet Char -> MinSize -> Query -> Maybe LongestSubstring
-longestRepeatedSubstring alphabet (MinSize minSize) (Query q) =
+longestRepeatedSubstring
+    :: Blacklist
+    -> Distance
+    -> T.Alphabet Char
+    -> MinSize
+    -> Query
+    -> Maybe LongestSubstring
+longestRepeatedSubstring blacklist distance alphabet (MinSize minSize) (Query q) =
     longestNonOverlap (Query q)
-        . filter ((>= minSize) . C.length . unSubstring . fst)
+        . filter checkThresholds
         . sortBy (comparing snd)
         . substringRankings
         . T.constructWith alphabet
         . C.unpack
         . (flip C.snoc '$')
         $ q
+  where
+    checkThresholds x =
+      ((>= minSize) . C.length . unSubstring . fst $ x)
+        && ( not
+           . itdFalsePositive blacklist distance
+           . C.unpack
+           . unSubstring
+           . fst
+           $ x
+           )
 
 -- | Get the longest non overlapping substring
 longestNonOverlap :: Query -> [(Substring, Int)] -> Maybe LongestSubstring
