@@ -15,6 +15,7 @@ import qualified Data.Map.Strict as Map
 import qualified System.IO as IO
 import Control.Monad
 import Data.Semigroup ((<>))
+import Debug.Trace
 
 -- Cabal
 import qualified Data.Vector as V
@@ -40,20 +41,21 @@ import Plot
 import Print
 
 -- | Command line arguments
-data Options = Options { input           :: Maybe String
-                       , refInput        :: Maybe String
-                       , blacklistInput  :: Maybe String
-                       , output          :: Maybe String
-                       , outputPlot      :: Maybe String
-                       , outputLabel     :: String
-                       , refField        :: Int
-                       , posField        :: Maybe Int
-                       , minSize         :: Int
-                       , gaussWindow     :: Int
-                       , gaussTime       :: Double
-                       , gaussThreshold  :: Double
-                       , minMut          :: Maybe Int
-                       , distance        :: Int
+data Options = Options { input            :: Maybe String
+                       , refInput         :: Maybe String
+                       , blacklistInput   :: Maybe String
+                       , output           :: Maybe String
+                       , outputPlot       :: Maybe String
+                       , outputLabel      :: String
+                       , refField         :: Int
+                       , posField         :: Maybe Int
+                       , minSize          :: Int
+                       , gaussWindow      :: Int
+                       , gaussTime        :: Double
+                       , gaussThreshold   :: Double
+                       , minMut           :: Maybe Int
+                       , distance         :: Int
+                       , refBlacklistFlag :: Bool
                        }
 
 -- | Command line options
@@ -169,9 +171,24 @@ options = Options
          <> value 2
          <> help "The minimum Levenshtein distance to the false positive\
                  \ checker. If the distance to the false positive string\
-                 \ is less than this number, the duplication is considered\
+                 \ is less than or equal to this number,\
+                 \ the duplication is considered\
                  \ a false positive. Compares candidates against each sequence\
                  \ in --blacklist-input"
+          )
+      <*> switch
+          ( long "reference-blacklist"
+         <> short 'r'
+         <> help "Whether to use the reference as a blacklist in addition to\
+                 \ the supplied blacklist. That is, the reference sequences\
+                 \ are inputed with the same parameters (except distance, which\
+                 \ here is 0)\
+                 \ to the duplication finder, and those duplications found are\
+                 \ added to the blacklist. This process is recursive, executed\
+                 \ until no more duplications are found in the reference.\
+                 \ Beware, too many blacklist entries can slow down the finder\
+                 \ significantly, as each blacklist entry is compared with each\
+                 \ candidate."
           )
 
 plotITDM :: Options -> (Int, (ITD, FastaSequence)) -> IO (ITD, FastaSequence)
@@ -205,6 +222,10 @@ getReferenceSeq field fs = ReferenceSeq
                             )
                 . unReferenceMap
 
+-- | Unpack a longest substring into a string.
+unpackSubstring :: LongestSubstring -> String
+unpackSubstring = C.unpack . unSubstring . _dupSubstring . unLongestSubstring
+
 mainFunc :: Options -> IO ()
 mainFunc opts = do
     hIn  <- case input opts of
@@ -221,14 +242,46 @@ mainFunc opts = do
                         . readFasta
                         $ hRefIn
 
-    blacklist <- case blacklistInput opts of
-                Nothing  -> return . Blacklist $ Set.empty
-                (Just x) -> IO.withFile x IO.ReadMode $ \hRefIn ->
-                    fmap (Blacklist . Set.fromList . fmap (C.unpack . fastaSeq))
-                        . readFasta
-                        $ hRefIn
+    suppliedBlacklist <-
+        case blacklistInput opts of
+            Nothing  -> return . Blacklist $ Set.empty
+            (Just x) -> IO.withFile x IO.ReadMode $ \hRefIn ->
+                fmap (Blacklist . Set.fromList . fmap (C.unpack . fastaSeq))
+                    . readFasta
+                    $ hRefIn
 
-    let getDup fs = ( longestRepeatedSubstringMutations
+
+    let longestRef bl = longestRepeatedSubstringMutations
+                            bl
+                            (Distance 0)
+                            (fmap MinMut . minMut $ opts)
+                            []
+                            "ATCG"
+                            (MinSize . minSize $ opts)
+                      . Query
+                      . fastaSeq
+        refBlacklist :: Blacklist -> [FastaSequence] -> Blacklist
+        refBlacklist (Blacklist !bl) fss =
+            case (catMaybes . fmap (longestRef (Blacklist bl)) $ fss) of
+                [] -> Blacklist bl
+                xs -> refBlacklist
+                        ( Blacklist
+                        . Set.union bl
+                        . Set.fromList
+                        . fmap unpackSubstring
+                        $ xs
+                        )
+                        fss
+
+    let blacklist =
+            if refBlacklistFlag opts
+                then refBlacklist suppliedBlacklist
+                   . Map.elems
+                   . unReferenceMap
+                   . fromMaybe (error "No reference supplied.")
+                   $ refMap
+                else suppliedBlacklist
+        getDup fs = ( longestRepeatedSubstringMutations
                         blacklist
                         (Distance $ distance opts)
                         (fmap MinMut . minMut $ opts)
