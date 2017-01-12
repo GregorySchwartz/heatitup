@@ -15,7 +15,6 @@ import qualified Data.Map.Strict as Map
 import qualified System.IO as IO
 import Control.Monad
 import Data.Semigroup ((<>))
-import Debug.Trace
 
 -- Cabal
 import qualified Data.Vector as V
