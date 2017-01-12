@@ -8,7 +8,8 @@ Collections the functions of general use in the program.
 {-# LANGUAGE OverloadedStrings #-}
 
 module Utility
-    ( fragmentSequence
+    ( zipMaybe
+    , fragmentSequence
     , fragmentSequenceFiller
     , hammingList
     , hamming
@@ -31,6 +32,14 @@ import Text.EditDistance
 
 -- Local
 import Types
+
+
+-- | Get the bs that correspond to the Justs in the first list.
+zipMaybe :: [Maybe a] -> [b] -> [Maybe b]
+zipMaybe xs = zipWith test xs
+  where
+    test (Just _) x = Just x
+    test Nothing x  = Nothing
 
 -- | Fragment the sequence by a certain window length
 fragmentSequence :: Window -> C.ByteString -> [Substring]

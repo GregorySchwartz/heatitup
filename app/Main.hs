@@ -262,7 +262,7 @@ mainFunc opts = do
                       . fastaSeq
         refBlacklist :: Blacklist -> [FastaSequence] -> Blacklist
         refBlacklist (Blacklist !bl) fss =
-            case (catMaybes . fmap (longestRef (Blacklist bl)) $ fss) of
+            case catMaybes longestList of
                 [] -> Blacklist bl
                 xs -> refBlacklist
                         ( Blacklist
@@ -271,7 +271,11 @@ mainFunc opts = do
                         . fmap unpackSubstring
                         $ xs
                         )
-                        fss
+                    . catMaybes
+                    . zipMaybe longestList
+                    $ fss
+          where
+            longestList = fmap (longestRef (Blacklist bl)) $ fss
 
     let blacklist =
             if refBlacklistFlag opts
