@@ -55,6 +55,7 @@ data Options = Options { input            :: Maybe String
                        , minMut           :: Maybe Int
                        , distance         :: Int
                        , refBlacklistFlag :: Bool
+                       , minRichness      :: Int
                        }
 
 -- | Command line options
@@ -189,6 +190,16 @@ options = Options
                  \ significantly, as each blacklist entry is compared with each\
                  \ candidate."
           )
+      <*> option auto
+          ( long "min-richness"
+         <> short 'R'
+         <> metavar "[1] | INT"
+         <> value 0
+         <> help "The minimum nucleotide richness (number of different types of\
+                 \ nucleotides) allowed in the duplication to be considered\
+                 \ real. Useful if the user knows that a sequence like\
+                 \ \"TTTTTTTTCTTTTTTTTC\" is not likely to be real."
+          )
 
 plotITDM :: Options -> (Int, (ITD, FastaSequence)) -> IO (ITD, FastaSequence)
 plotITDM opts (!count, (!itd, !fs)) = do
@@ -252,6 +263,7 @@ mainFunc opts = do
 
     let longestRef bl = longestRepeatedSubstringMutations
                             bl
+                            (Richness . minRichness $ opts)
                             (Distance 0)
                             (fmap MinMut . minMut $ opts)
                             []
@@ -286,6 +298,7 @@ mainFunc opts = do
                 else suppliedBlacklist
         getDup fs = ( longestRepeatedSubstringMutations
                         blacklist
+                        (Richness . minRichness $ opts)
                         (Distance $ distance opts)
                         (fmap MinMut . minMut $ opts)
                         []

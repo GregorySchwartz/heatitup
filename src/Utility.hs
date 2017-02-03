@@ -18,13 +18,15 @@ module Utility
     , spacerFalsePositive
     , consecutiveSpacerFalsePositive
     , isConsecutive
+    , richness
     ) where
 
 -- Standard
-import Data.Maybe
 import Data.Char
 import Data.List
+import Data.Maybe
 import qualified Data.Foldable as F
+import qualified Data.Set as Set
 
 -- Cabal
 import qualified Data.ByteString.Char8 as C
@@ -121,3 +123,7 @@ consecutiveSpacerFalsePositive (Consecutive c) base (Substring s) =
 -- | See if any x elements are false and neighboring in a list
 isConsecutive :: Int -> [Bool] -> Bool
 isConsecutive c = any (\x -> ((>= c) $ length x) && (not $ head x)) . group
+
+-- | Get the richness of a list.
+richness :: (Eq a, Ord a) => [a] -> Int
+richness = Set.size . Set.fromList

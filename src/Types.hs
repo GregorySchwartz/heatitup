@@ -39,6 +39,7 @@ newtype Percent      = Percent Double deriving (Show)
 newtype Consecutive  = Consecutive Int deriving (Show)
 newtype Label        = Label C.ByteString
 newtype MinSize      = MinSize Int
+newtype Richness     = Richness Int
 newtype MinMut       = MinMut { unMinMut :: Int }
 newtype MaxMut       = MaxMut { unMaxMut :: Int } deriving (Eq, Ord)
 newtype Window       = Window Int
