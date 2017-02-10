@@ -9,25 +9,26 @@ Find duplications a sequence.
 module Main where
 
 -- Standard
-import Data.Maybe
-import qualified Data.Set as Set
-import qualified Data.Map.Strict as Map
-import qualified System.IO as IO
 import Control.Monad
+import Data.Maybe
 import Data.Semigroup ((<>))
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
+import qualified System.IO as IO
 
 -- Cabal
-import qualified Data.Vector as V
-import qualified Data.ByteString.Char8 as C
-import Pipes
-import qualified Pipes.Prelude as P
-import qualified Pipes.ByteString as PB
-import Pipes.Csv
 import Data.Fasta.ByteString
-import qualified Diagrams.Backend.PGF as PGF
+import Data.Fasta.ByteString
 import Diagrams.TwoD.Size (mkWidth, mkHeight)
 import Options.Applicative
-import Data.Fasta.ByteString
+import Pipes
+import Pipes.Csv
+import Safe
+import qualified Data.ByteString.Char8 as C
+import qualified Data.Vector as V
+import qualified Diagrams.Backend.PGF as PGF
+import qualified Pipes.ByteString as PB
+import qualified Pipes.Prelude as P
 
 -- Local
 import Types
@@ -116,14 +117,16 @@ options = Options
          <> metavar "[1] | INT"
          <> value 1
          <> help "The field in each input header that contains the reference\
-                 \ accession number to compare to."
+                 \ accession number to compare to. Results in an out of bounds\
+                 \ if this field does not exist."
           )
       <*> optional ( option auto
           ( long "position-field"
          <> short 'p'
          <> metavar "[Nothing] | INT"
          <> help "The field in each input header that contains the starting\
-                 \ position of the read. Added to the annotations."
+                 \ position of the read. Added to the annotations. Results\
+                 \ in out of bounds if this field does not exist."
           )
         )
       <*> option auto
@@ -339,7 +342,11 @@ mainFunc opts = do
             maybe (Position 1) (\ x -> Position
                                         . read
                                         . C.unpack
-                                        . (!! (x - 1))
+                                        . fromMaybe ( error
+                                                    $ "Position field out of bounds (use another field number): "
+                                                   <> (C.unpack . fastaHeader $ fs)
+                                                    )
+                                        . (flip atMay (x - 1))
                                         . C.split '|'
                                         . fastaHeader $ fs
                                 )

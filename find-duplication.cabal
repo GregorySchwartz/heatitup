@@ -1,13 +1,13 @@
 name:                find-duplication
-version:             0.4.3.0
+version:             0.4.3.1
 synopsis:            Find duplications in a sequence
 description:         Please see README.md
 homepage:            http://github.com/GregorySchwartz/find-duplication#readme
 license:             GPL-3
 license-file:        LICENSE
 author:              Gregory W. Schwartz
-maintainer:          example@example.com
-copyright:           2016 Gregory W. Schwartz
+maintainer:          gsch@mail.med.upenn.edu
+copyright:           2017 Gregory W. Schwartz
 category:            Bioinformatics
 build-type:          Simple
 -- extra-source-files:
@@ -56,6 +56,7 @@ executable find-duplication
                      , pipes
                      , pipes-bytestring
                      , bytestring
+                     , safe
                      , diagrams-pgf
                      , diagrams-lib
                      , pipes-csv
