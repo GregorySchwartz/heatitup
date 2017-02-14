@@ -12,60 +12,48 @@ module Repeated
     ) where
 
 -- Standard
-import Data.Maybe
-import Data.List
-import Data.Ord
-import qualified Data.Set as Set
 import Control.Monad
+import Data.List
+import Data.Maybe
+import Data.Ord
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 -- Cabal
-import Safe
-import qualified Data.SuffixTree as T
-import qualified Data.ByteString.Char8 as C
-import Data.ByteString.Search
 import Control.Lens
+import Data.ByteString.Search
+import Data.Fasta.ByteString
+import Safe
+import qualified Data.ByteString.Char8 as C
+import qualified Data.SuffixTree as ST
 
 -- Local
 import Types
 import Utility
 
-longestRepeatedSubstringMutations
-    :: Blacklist
-    -> Richness
-    -> Distance
-    -> Maybe MinMut
-    -> [Position]
-    -> T.Alphabet Char
-    -> MinSize
-    -> Query
-    -> Maybe LongestSubstring
-longestRepeatedSubstringMutations blacklist
-                                  r
-                                  distance
-                                  minMut
-                                  muts
-                                  alphabet
-                                  minSize
-                                  q = do
-    longest <- longestRepeatedSubstring blacklist r distance alphabet minSize q
+longestRepeatedSubstringMutations :: RepeatConfig
+                                  -> [Position]
+                                  -> Query
+                                  -> Maybe LongestSubstring
+longestRepeatedSubstringMutations config muts q = do
+    longest <-
+        longestRepeatedSubstring config q
 
-    result <- case (minMut, getNextLongestF longest, getNextLongestB longest) of
-                  (Nothing, _, _)       -> Just longest
-                  (_, Nothing, Nothing) -> addMuts longest
-                  (Just (MinMut mm), forward, backward) ->
-                    if substringLen (forBackBetter forward backward)
-                     - substringLen longest < mm
-                        then addMuts longest
-                        else longestRepeatedSubstringMutations
-                             blacklist
-                             r
-                             distance
-                             minMut
-                             (snd . (forBackQuery forward backward) longest $ q)
-                             alphabet
-                             minSize
-                           . fst
-                           $ (forBackQuery forward backward) longest q
+    result <-
+        case ( _minMut config
+             , getNextLongestF longest, getNextLongestB longest
+             ) of
+            (Nothing, _, _)       -> Just longest
+            (_, Nothing, Nothing) -> addMuts longest
+            (Just (MinMut mm), forward, backward) ->
+                if substringLen (forBackBetter forward backward)
+                    - substringLen longest < mm
+                    then addMuts longest
+                    else longestRepeatedSubstringMutations
+                            config
+                            (snd . (forBackQuery forward backward) longest $ q)
+                        . fst
+                        $ (forBackQuery forward backward) longest q
 
     return result
   where
@@ -88,12 +76,12 @@ longestRepeatedSubstringMutations blacklist
     substringLen      =
         C.length . unSubstring . _dupSubstring . unLongestSubstring
     getNextLongestF l =
-        longestRepeatedSubstring blacklist r distance alphabet minSize
+        longestRepeatedSubstring config
             . fst
             . newQuery mutateQueryForward l
             $ q
     getNextLongestB l =
-        longestRepeatedSubstring blacklist r distance alphabet minSize
+        longestRepeatedSubstring config
             . fst
             . newQuery mutateQueryBackward l
             $ q
@@ -104,7 +92,11 @@ longestRepeatedSubstringMutations blacklist
 
 -- | Mutate the query by replacing a location in the query with the new
 -- substring
-mutateQueryForward :: Position -> Position -> Substring -> Query -> (Query, [Position])
+mutateQueryForward :: Position
+                   -> Position
+                   -> Substring
+                   -> Query
+                   -> (Query, [Position])
 mutateQueryForward (Position i) (Position j) (Substring s) (Query q) =
     if (i + C.length s >= j) || (j + C.length s >= C.length q)
         then (Query q, [])
@@ -121,7 +113,11 @@ mutateQueryForward (Position i) (Position j) (Substring s) (Query q) =
 
 -- | Mutate the query by replacing a location in the query with the new
 -- substring
-mutateQueryBackward :: Position -> Position -> Substring -> Query -> (Query, [Position])
+mutateQueryBackward :: Position
+                    -> Position
+                    -> Substring
+                    -> Query
+                    -> (Query, [Position])
 mutateQueryBackward (Position i) (Position j) (Substring s) (Query q) =
     if i == 0 || j <= i + C.length s - 1
         then (Query q, [])
@@ -136,37 +132,41 @@ mutateQueryBackward (Position i) (Position j) (Substring s) (Query q) =
 
 -- | Return the longest repeated substring of a list, specifically with an
 -- alphabet
-longestRepeatedSubstring
-    :: Blacklist
-    -> Richness
-    -> Distance
-    -> T.Alphabet Char
-    -> MinSize
-    -> Query
-    -> Maybe LongestSubstring
-longestRepeatedSubstring blacklist
-                         (Richness minRichness)
-                         distance
-                         alphabet
-                         (MinSize minSize)
-                         (Query q) =
+longestRepeatedSubstring :: RepeatConfig -> Query -> Maybe LongestSubstring
+longestRepeatedSubstring config (Query q) =
     longestNonOverlap (Query q)
         . filter checkThresholds
         . sortBy (comparing snd)
         . substringRankings
-        . T.constructWith alphabet
+        . ST.constructWith (_alphabet config)
         . C.unpack
         . (flip C.snoc '$')
         $ q
   where
     checkThresholds x =
-      ((>= minSize) . C.length . unSubstring . fst $ x)
+      ((>= (unMinSize $ _minSize config)) . C.length . unSubstring . fst $ x)
         && (checkRichness x)
         && (checkFalsePositive x)
-    checkFalsePositive =
-        not . itdFalsePositive blacklist distance . C.unpack . unSubstring . fst
-    checkRichness      =
-        (>= minRichness) . richness . C.unpack . unSubstring . fst
+        && (maybe True (checkReference x) . _refMap $ config)
+    checkFalsePositive = not
+                       . itdFalsePositive (_blacklist config) (_distance config)
+                       . C.unpack
+                       . unSubstring
+                       . fst
+    checkRichness      = (>= (unRichness $ _richness config))
+                       . getRichness
+                       . C.unpack
+                       . unSubstring
+                       . fst
+    checkReference x =
+        ((not $ _refCheckFlag config) ||)
+            . not
+            . any ( (> 1)
+                  . length
+                  . nonOverlappingIndices (unSubstring . fst $ x)
+                  . fastaSeq
+                  )
+            . unReferenceMap
 
 -- | Get the longest non overlapping substring
 longestNonOverlap :: Query -> [(Substring, Int)] -> Maybe LongestSubstring
@@ -198,11 +198,11 @@ isOverlapping :: Duplication -> Bool
 isOverlapping x = null . drop 1 . nub . _dupLocations $ x
 
 -- | Get the deepest substring in a suffix tree
-substringRankings :: T.STree Char -> [(Substring, Int)]
+substringRankings :: ST.STree Char -> [(Substring, Int)]
 substringRankings = map (over _1 (Substring . C.pack)) . go ([], 0)
   where
-    go acc T.Leaf               = [acc]
-    go acc@(!x, !n) (T.Node es) = concatMap (check acc) es
-    check acc (_, T.Leaf)       = [acc]
-    check (!x, !n) (!p, !tree)  =
-        go (x ++ T.prefix p, n + (length . T.prefix) p) tree
+    go acc ST.Leaf               = [acc]
+    go acc@(!x, !n) (ST.Node es) = concatMap (check acc) es
+    check acc (_, ST.Leaf)       = [acc]
+    check (!x, !n) (!p, !tree)   =
+        go (x ++ ST.prefix p, n + (length . ST.prefix) p) tree

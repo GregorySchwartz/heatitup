@@ -11,13 +11,14 @@ module Main where
 -- Standard
 import Control.Monad
 import Data.Maybe
+import Data.Bool
 import Data.Semigroup ((<>))
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified System.IO as IO
 
 -- Cabal
-import Data.Fasta.ByteString
+import Control.Lens
 import Data.Fasta.ByteString
 import Diagrams.TwoD.Size (mkWidth, mkHeight)
 import Options.Applicative
@@ -41,22 +42,24 @@ import Plot
 import Print
 
 -- | Command line arguments
-data Options = Options { input            :: Maybe String
-                       , refInput         :: Maybe String
-                       , blacklistInput   :: Maybe String
-                       , output           :: Maybe String
-                       , outputPlot       :: Maybe String
-                       , outputLabel      :: String
-                       , refField         :: Int
-                       , posField         :: Maybe Int
-                       , minSize          :: Int
-                       , gaussWindow      :: Int
-                       , gaussTime        :: Double
-                       , gaussThreshold   :: Double
-                       , minMut           :: Maybe Int
-                       , distance         :: Int
-                       , refBlacklistFlag :: Bool
-                       , minRichness      :: Int
+data Options = Options { input                 :: Maybe String
+                       , spacerFlag            :: Bool
+                       , refInput              :: Maybe String
+                       , blacklistInput        :: Maybe String
+                       , output                :: Maybe String
+                       , outputPlot            :: Maybe String
+                       , outputLabel           :: String
+                       , refField              :: Int
+                       , posField              :: Maybe Int
+                       , inputMinSize          :: Int
+                       , gaussWindow           :: Int
+                       , gaussTime             :: Double
+                       , gaussThreshold        :: Double
+                       , inputMinMut           :: Maybe Int
+                       , inputDistance         :: Int
+                       , refCheckBlacklistFlag :: Bool
+                       , refRecBlacklistFlag   :: Bool
+                       , minRichness           :: Int
                        }
 
 -- | Command line options
@@ -69,6 +72,13 @@ options = Options
          <> help "The input file"
           )
         )
+      <*> switch
+          ( long "spacer"
+         <> short 's'
+         <> help "Whether to characterize the spacer. Requires\
+                 \ reference-input and matching labels for the input and\
+                 \ reference-input to compare."
+          )
       <*> optional ( strOption
           ( long "reference-input"
          <> short 'I'
@@ -131,7 +141,7 @@ options = Options
         )
       <*> option auto
           ( long "min-size"
-         <> short 's'
+         <> short 'S'
          <> metavar "[15] | INT"
          <> value 15
          <> help "The minimum size of a duplication"
@@ -180,9 +190,17 @@ options = Options
                  \ in --blacklist-input"
           )
       <*> switch
-          ( long "reference-blacklist"
-         <> short 'r'
+          ( long "reference-check-blacklist"
+         <> short 'c'
          <> help "Whether to use the reference as a blacklist in addition to\
+                 \ the supplied blacklist. That is, we check if the duplication\
+                 \ can be found twice or more in the reference input."
+          )
+      <*> switch
+          ( long "reference-recursive-blacklist"
+         <> short 'r'
+         <> help "Whether to use the reference as a recursive\
+                 \ blacklist in addition to\
                  \ the supplied blacklist. That is, the reference sequences\
                  \ are inputed with the same parameters (except distance, which\
                  \ here is 0)\
@@ -197,7 +215,7 @@ options = Options
           ( long "min-richness"
          <> short 'R'
          <> metavar "[1] | INT"
-         <> value 0
+         <> value 1
          <> help "The minimum nucleotide richness (number of different types of\
                  \ nucleotides) allowed in the duplication to be considered\
                  \ real. Useful if the user knows that a sequence like\
@@ -238,6 +256,34 @@ getReferenceSeq field fs = ReferenceSeq
 -- | Unpack a longest substring into a string.
 unpackSubstring :: LongestSubstring -> String
 unpackSubstring = C.unpack . unSubstring . _dupSubstring . unLongestSubstring
+                
+-- | Get a blacklist using a recursive method on the reference sequences. That
+-- is, repeatedly exhaust all possibly repeats in the reference sequences.
+-- Slower than the reference check if there are lots of sequences in the
+-- reference.
+refRecBlacklist :: RepeatConfig -> [FastaSequence] -> Blacklist
+refRecBlacklist !tempConfig fss =
+    case catMaybes longestList of
+        [] -> _blacklist tempConfig
+        xs -> refRecBlacklist
+                ( over blacklist ( Blacklist
+                                 . Set.union ( Set.fromList
+                                             . fmap unpackSubstring
+                                             $ xs
+                                             )
+                                 . unBlacklist
+                                 ) tempConfig
+                )
+            . catMaybes
+            . zipMaybe longestList
+            $ fss
+    where
+    longestList = fmap
+                    ( longestRepeatedSubstringMutations tempConfig []
+                    . Query
+                    . fastaSeq
+                    )
+                    fss
 
 mainFunc :: Options -> IO ()
 mainFunc opts = do
@@ -263,50 +309,28 @@ mainFunc opts = do
                     . readFasta
                     $ hRefIn
 
-
-    let longestRef bl = longestRepeatedSubstringMutations
-                            bl
-                            (Richness . minRichness $ opts)
-                            (Distance 0)
-                            (fmap MinMut . minMut $ opts)
-                            []
-                            "ATCG"
-                            (MinSize . minSize $ opts)
-                      . Query
-                      . fastaSeq
-        refBlacklist :: Blacklist -> [FastaSequence] -> Blacklist
-        refBlacklist (Blacklist !bl) fss =
-            case catMaybes longestList of
-                [] -> Blacklist bl
-                xs -> refBlacklist
-                        ( Blacklist
-                        . Set.union bl
-                        . Set.fromList
-                        . fmap unpackSubstring
-                        $ xs
-                        )
-                    . catMaybes
-                    . zipMaybe longestList
-                    $ fss
-          where
-            longestList = fmap (longestRef (Blacklist bl)) $ fss
-
-    let blacklist =
-            if refBlacklistFlag opts
-                then refBlacklist suppliedBlacklist
+    let tempConfig = RepeatConfig
+                        { _blacklist    = suppliedBlacklist
+                        , _refMap       = refMap
+                        , _richness     = Richness . minRichness $ opts
+                        , _distance     = Distance 0
+                        , _alphabet     = "ATCG"
+                        , _minSize      = MinSize . inputMinSize $ opts
+                        , _minMut       = fmap MinMut . inputMinMut $ opts
+                        , _refCheckFlag = refCheckBlacklistFlag opts
+                        }
+        finalBlacklist =
+            if refRecBlacklistFlag opts
+                then refRecBlacklist tempConfig
                    . Map.elems
                    . unReferenceMap
                    . fromMaybe (error "No reference supplied.")
                    $ refMap
                 else suppliedBlacklist
-        getDup fs = ( longestRepeatedSubstringMutations
-                        blacklist
-                        (Richness . minRichness $ opts)
-                        (Distance $ distance opts)
-                        (fmap MinMut . minMut $ opts)
-                        []
-                        "ATCG"
-                        (MinSize . minSize $ opts)
+        config    = set distance (Distance . inputDistance $ opts)
+                  . set blacklist finalBlacklist
+                  $ tempConfig
+        getDup fs = ( longestRepeatedSubstringMutations config []
                         . Query
                         . fastaSeq
                         $ fs
@@ -371,9 +395,13 @@ mainFunc opts = do
                                                 , C.pack "classification"
                                                 ]
 
-    runEffect $ ( ( P.zip (each [1..])
+    runEffect $ ( ( P.zip (Pipes.each [1..])
                         ( pipesFasta (PB.fromHandle hIn)
-                        >-> P.map (getSpace refMap . getDup)
+                        >-> P.map ( getSpace ( bool Nothing refMap
+                                             $ spacerFlag opts
+                                             )
+                                  . getDup
+                                  )
                         )
                     )
                 >-> P.mapM (plotITDM opts)

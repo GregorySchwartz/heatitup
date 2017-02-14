@@ -1,5 +1,5 @@
 name:                find-duplication
-version:             0.4.3.1
+version:             0.5.0.0
 synopsis:            Find duplications in a sequence
 description:         Please see README.md
 homepage:            http://github.com/GregorySchwartz/find-duplication#readme
@@ -25,22 +25,22 @@ library
                      , Plot
                      , Print
   build-depends:       base >= 4.7 && < 5
-                     , containers
-                     , suffixtree
                      , bytestring
+                     , bytestring-show
+                     , cassava
+                     , colour
+                     , containers
+                     , diagrams-lib
+                     , edit-distance
+                     , fasta
                      , lens
-                     , stringsearch
+                     , pipes
+                     , pipes-bytestring
+                     , pipes-csv
                      , safe
                      , string-similarity
-                     , diagrams-lib
-                     , colour
-                     , fasta
-                     , bytestring-show
-                     , pipes
-                     , pipes-csv
-                     , pipes-bytestring
-                     , cassava
-                     , edit-distance
+                     , stringsearch
+                     , suffixtree
                      , vector
   ghc-options:         -O2
   default-language:    Haskell2010
@@ -51,17 +51,18 @@ executable find-duplication
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:       base
                      , find-duplication
-                     , optparse-applicative
+                     , bytestring
+                     , containers
+                     , diagrams-lib
+                     , diagrams-pgf
                      , fasta
+                     , lens
+                     , optparse-applicative
                      , pipes
                      , pipes-bytestring
-                     , bytestring
-                     , safe
-                     , diagrams-pgf
-                     , diagrams-lib
                      , pipes-csv
+                     , safe
                      , vector
-                     , containers
   default-language:    Haskell2010
 
 source-repository head

@@ -13,17 +13,17 @@ module Spacer
     ) where
 
 -- Standard
+import Data.List
 import Data.Maybe
 import Data.Ord
-import Data.List
 import qualified Data.Set as Set
 
 -- Cabal
-import qualified Data.ByteString.Char8 as C
+import Control.Lens
 import Data.ByteString.Search
 import Data.List.CommonSubstring
 import Safe
-import Control.Lens
+import qualified Data.ByteString.Char8 as C
 
 -- Local
 import Types
@@ -75,11 +75,11 @@ mutateQuery (Just (Position p)) (Substring s) q =
 
 -- | Get the most similar sequence to a base sequence from the left or
 -- right substring, along with the base fragment
-minHammingLeftRight ::
-    C.ByteString
-        -> Substring
-        -> Substring
-        -> Either (Substring, C.ByteString) (Substring, C.ByteString)
+minHammingLeftRight
+    :: C.ByteString
+    -> Substring
+    -> Substring
+    -> Either (Substring, C.ByteString) (Substring, C.ByteString)
 minHammingLeftRight base (Substring s) (Substring spacer) =
     either (Left . (Substring leftSeq,)) (Right . (Substring rightSeq,))
         . minimumBy (comparing $ either (hamming leftSeq) (hamming rightSeq))

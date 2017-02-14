@@ -18,7 +18,7 @@ module Utility
     , spacerFalsePositive
     , consecutiveSpacerFalsePositive
     , isConsecutive
-    , richness
+    , getRichness
     ) where
 
 -- Standard
@@ -125,5 +125,5 @@ isConsecutive :: Int -> [Bool] -> Bool
 isConsecutive c = any (\x -> ((>= c) $ length x) && (not $ head x)) . group
 
 -- | Get the richness of a list.
-richness :: (Eq a, Ord a) => [a] -> Int
-richness = Set.size . Set.fromList
+getRichness :: (Eq a, Ord a) => [a] -> Int
+getRichness = Set.size . Set.fromList
