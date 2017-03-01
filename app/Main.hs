@@ -51,6 +51,7 @@ data Options = Options { input                 :: Maybe String
                        , outputLabel           :: String
                        , refField              :: Int
                        , posField              :: Maybe Int
+                       , ignoreField           :: Maybe Int
                        , inputMinSize          :: Int
                        , gaussWindow           :: Int
                        , gaussTime             :: Double
@@ -137,6 +138,17 @@ options = Options
          <> help "The field in each input header that contains the starting\
                  \ position of the read. Added to the annotations. Results\
                  \ in out of bounds if this field does not exist."
+          )
+        )
+      <*> optional ( option auto
+          ( long "ignore-field"
+         <> short 'g'
+         <> metavar "[Nothing] | INT"
+         <> help "The field in each input header that contains a 0 or a 1:\
+                 \ 0 means to ignore this read (assign as Normal) and 1\
+                 \ means to find a duplication in this read.\
+                 \ Used for reads where there is known to be no duplication\
+                 \ and thus helps remove false positives."
           )
         )
       <*> option auto
@@ -256,7 +268,7 @@ getReferenceSeq field fs = ReferenceSeq
 -- | Unpack a longest substring into a string.
 unpackSubstring :: LongestSubstring -> String
 unpackSubstring = C.unpack . unSubstring . _dupSubstring . unLongestSubstring
-                
+
 -- | Get a blacklist using a recursive method on the reference sequences. That
 -- is, repeatedly exhaust all possibly repeats in the reference sequences.
 -- Slower than the reference check if there are lots of sequences in the
@@ -330,10 +342,14 @@ mainFunc opts = do
         config    = set distance (Distance . inputDistance $ opts)
                   . set blacklist finalBlacklist
                   $ tempConfig
-        getDup fs = ( longestRepeatedSubstringMutations config []
-                        . Query
-                        . fastaSeq
-                        $ fs
+        getDup fs = ( join
+                    . fmap ( longestRepeatedSubstringMutations config []
+                           . Query
+                           . fastaSeq
+                           )
+                        . maybe (Just fs) (flip ignore fs)
+                        . ignoreField
+                        $ opts
                     , fs
                     )
         getSpace Nothing (!dup, !fs) =
@@ -384,16 +400,16 @@ mainFunc opts = do
                 c
                 itd
         headerOrder              = V.fromList [ C.pack "label"
-                                                , C.pack "fHeader"
-                                                , C.pack "fSequence"
-                                                , C.pack "dSubstring"
-                                                , C.pack "dLocations"
-                                                , C.pack "dMutations"
-                                                , C.pack "sSubstring"
-                                                , C.pack "sLocation"
-                                                , C.pack "sOtherLocations"
-                                                , C.pack "classification"
-                                                ]
+                                              , C.pack "fHeader"
+                                              , C.pack "fSequence"
+                                              , C.pack "dSubstring"
+                                              , C.pack "dLocations"
+                                              , C.pack "dMutations"
+                                              , C.pack "sSubstring"
+                                              , C.pack "sLocation"
+                                              , C.pack "sOtherLocations"
+                                              , C.pack "classification"
+                                              ]
 
     runEffect $ ( ( P.zip (Pipes.each [1..])
                         ( pipesFasta (PB.fromHandle hIn)

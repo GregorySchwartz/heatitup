@@ -19,17 +19,20 @@ module Utility
     , consecutiveSpacerFalsePositive
     , isConsecutive
     , getRichness
+    , ignore
     ) where
 
 -- Standard
 import Data.Char
 import Data.List
 import Data.Maybe
+import Data.Monoid
 import qualified Data.Foldable as F
 import qualified Data.Set as Set
 
 -- Cabal
 import qualified Data.ByteString.Char8 as C
+import Data.Fasta.ByteString
 import Text.EditDistance
 
 -- Local
@@ -127,3 +130,12 @@ isConsecutive c = any (\x -> ((>= c) $ length x) && (not $ head x)) . group
 -- | Get the richness of a list.
 getRichness :: (Eq a, Ord a) => [a] -> Int
 getRichness = Set.size . Set.fromList
+
+-- | Check to see if a fasta sequence should be analyzed.
+ignore :: Int -> FastaSequence -> Maybe FastaSequence
+ignore field fs = case getField field '|' fs of
+                    "0" -> Nothing
+                    "1" -> Just fs
+                    _   -> error
+                         $ "ignore-field process: neither a 0 nor 1 found at position "
+                        <> show field
