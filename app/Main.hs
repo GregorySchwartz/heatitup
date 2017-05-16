@@ -5,11 +5,15 @@ Find duplications a sequence.
 -}
 
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 
 module Main where
 
 -- Standard
 import Control.Monad
+import Data.Char
 import Data.Maybe
 import Data.Bool
 import Data.Semigroup ((<>))
@@ -25,9 +29,14 @@ import Options.Applicative
 import Pipes
 import Pipes.Csv
 import Safe
+import Diagrams.TwoD.Size
+import Diagrams.Backend.PGF (renderPGF, PGF)
+import Diagrams.Backend.SVG (renderSVG, SVG)
+import Diagrams.Backend.Html5 (renderHtml5, Html5)
+import Diagrams.Backend.Rasterific (renderRasterific, Rasterific)
+import qualified Diagrams.Prelude as D
 import qualified Data.ByteString.Char8 as C
 import qualified Data.Vector as V
-import qualified Diagrams.Backend.PGF as PGF
 import qualified Pipes.ByteString as PB
 import qualified Pipes.Prelude as P
 
@@ -112,7 +121,13 @@ options = Options
          <> metavar "FILE"
          <> help "The output file for the plot. Each new plot gets a new number\
                  \ on it: output_1.svg, output_2.svg, etc. Each plot uses the\
-                 \ first entry in the fasta header as the label."
+                 \ first entry in the fasta header as the label. If FILE is\
+                 \ HEADER (i.e. HEADER.pdf), uses the first entry in the fasta\
+                 \ header as FILE along with the number. Supports html, png,\
+                 \ tif, jpg, bmp, svg, and pdf. svg may render text differently\
+                 \ in different situations, and pdf uses LaTeX for rendering\
+                 \ and may also have issues if reads are too long, but the\
+                 \ options are there and may be fixed in future releases."
           )
         )
       <*> strOption
@@ -236,17 +251,67 @@ options = Options
 
 plotITDM :: Options -> (Int, (ITD, FastaSequence)) -> IO (ITD, FastaSequence)
 plotITDM opts (!count, (!itd, !fs)) = do
-    let savefile = (++ "_" ++ show count ++ ".pdf")
-                 . fromMaybe ""
+    let fileType = fmap ( fmap toLower
+                        . reverse
+                        . takeWhile (/= '.')
+                        . reverse
+                        )
                  . outputPlot
                  $ opts
+        firstField =
+            maybe
+                "output"
+                (fmap (\x -> if x == '.' || x == '/' then '_' else x) . C.unpack)
+                . headMay
+                . C.split '|'
+                . fastaHeader
+                $ fs
+        savefile   = (++ "_" ++ show count ++ "." ++ fromJust fileType)
+                   . (\x -> case reverse . drop 1 . dropWhile (/= '.') . reverse $ x of
+                            "HEADER" -> firstField
+                            y        -> y
+                     )
+                   . fromJust
+                   . outputPlot
+                   $ opts
 
-    unless (isNothing . outputPlot $ opts)
-        . PGF.renderPGF savefile (mkHeight (60 :: Double))
-        . plotITD fs itd
-        . Query
-        . fastaSeq
-        $ fs
+    case fileType of
+        (Just "pdf")  -> renderPGF savefile (mkHeight (60 :: Double))
+                       . (\x -> plotITD fs itd x :: D.Diagram PGF)
+                       . Query
+                       . fastaSeq
+                       $ fs
+        (Just "svg")  -> renderSVG savefile (mkHeight (60 :: Double))
+                       . (\x -> plotITD fs itd x :: D.Diagram SVG)
+                       . Query
+                       . fastaSeq
+                       $ fs
+        (Just "html") -> renderHtml5 savefile (mkHeight (60 :: Double))
+                       . (\x -> plotITD fs itd x :: D.Diagram Html5)
+                       . Query
+                       . fastaSeq
+                       $ fs
+        (Just "png")  -> renderRasterific savefile (mkHeight (60 :: Double))
+                       . (\x -> plotITD fs itd x :: D.Diagram Rasterific)
+                       . Query
+                       . fastaSeq
+                       $ fs
+        (Just "tif")  -> renderRasterific savefile (mkHeight (60 :: Double))
+                       . (\x -> plotITD fs itd x :: D.Diagram Rasterific)
+                       . Query
+                       . fastaSeq
+                       $ fs
+        (Just "jpg")  -> renderRasterific savefile (mkHeight (60 :: Double))
+                       . (\x -> plotITD fs itd x :: D.Diagram Rasterific)
+                       . Query
+                       . fastaSeq
+                       $ fs
+        (Just "bmp")  -> renderRasterific savefile (mkHeight (60 :: Double))
+                       . (\x -> plotITD fs itd x :: D.Diagram Rasterific)
+                       . Query
+                       . fastaSeq
+                       $ fs
+        Nothing      -> return ()
 
     return (itd, fs)
 

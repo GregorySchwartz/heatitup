@@ -2,7 +2,7 @@
 # For more information, see: http://docs.haskellstack.org/en/stable/yaml_configuration/
 
 # Specifies the GHC version and set of packages available (e.g., lts-3.5, nightly-2015-09-21, ghc-7.10.2)
-resolver: lts-7.8
+resolver: lts-8.13
 
 # Local packages, usually specified by relative directory name
 packages:
@@ -11,10 +11,9 @@ packages:
 extra-deps:
 - suffixtree-0.2.2.1
 - string-similarity-0.1.0.0
-- diagrams-pgf-0.1.0.5
-- texrunner-0.0.1.1
+- diagrams-pgf-1.4
 - bytestring-show-0.3.5.6
-- optparse-applicative-0.13.0.0
+- texrunner-0.0.1.1
 
 # Override default flag values for local packages and extra-deps
 flags: {}

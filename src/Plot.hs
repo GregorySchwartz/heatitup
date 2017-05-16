@@ -8,6 +8,8 @@ Collections the functions pertaining to plotting the sequence.
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 
 module Plot
     ( plotITD
@@ -40,6 +42,7 @@ plotNucleotide nuc mut backG = text nuc # fc (colors "black")
                             <> mut
                             <> square 1 # fc backG # lc backG
 
+plotITD :: _ => FastaSequence -> ITD -> Types.Query -> QDiagram b V2 n Any
 plotITD fs itd = hcat
                . (:) ( text label
                     <> rect (genericLength label) 1 # lw none
