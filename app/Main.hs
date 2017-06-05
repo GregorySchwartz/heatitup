@@ -23,6 +23,7 @@ import qualified System.IO as IO
 
 -- Cabal
 import Control.Lens
+import Data.Colour.SRGB (sRGB24read)
 import Data.Fasta.ByteString
 import Diagrams.TwoD.Size (mkWidth, mkHeight)
 import Options.Applicative
@@ -57,6 +58,7 @@ data Options = Options { input                 :: Maybe String
                        , blacklistInput        :: Maybe String
                        , output                :: Maybe String
                        , outputPlot            :: Maybe String
+                       , outputSize            :: Double
                        , outputLabel           :: String
                        , refField              :: Int
                        , posField              :: Maybe Int
@@ -70,6 +72,12 @@ data Options = Options { input                 :: Maybe String
                        , refCheckBlacklistFlag :: Bool
                        , refRecBlacklistFlag   :: Bool
                        , minRichness           :: Int
+                       , inputColorDupL        :: String
+                       , inputColorDupR        :: String
+                       , inputColorMut         :: String
+                       , inputColorSpacer      :: String
+                       , inputColorBackground  :: String
+                       , inputColorForeground  :: String
                        }
 
 -- | Command line options
@@ -130,6 +138,13 @@ options = Options
                  \ options are there and may be fixed in future releases."
           )
         )
+      <*> option auto
+          ( long "output-size"
+         <> short 'u'
+         <> metavar "SIZE"
+         <> value 20
+         <> help "([20] | DOUBLE) The size of the sequence image output."
+          )
       <*> strOption
           ( long "label"
          <> short 'l'
@@ -176,7 +191,7 @@ options = Options
       <*> option auto
           ( long "gaussian-window"
          <> short 'w'
-         <> metavar "[4] | Double"
+         <> metavar "[3] | Double"
          <> value 3
          <> help "The window for the discrete gaussian kernel atypical spacer\
                  \ determination"
@@ -248,9 +263,49 @@ options = Options
                  \ real. Useful if the user knows that a sequence like\
                  \ \"TTTTTTTTCTTTTTTTTC\" is not likely to be real."
           )
+      <*> strOption
+          ( long "color-left-duplication"
+         <> metavar "[#458588] | COLOR"
+         <> help "The color of the left side of the repeated sequence."
+         <> value "#458588"
+          )
+      <*> strOption
+          ( long "color-right-duplication"
+         <> metavar "[#b16286] | COLOR"
+         <> help "The color of the right side of the repeated sequence."
+         <> value "#b16286"
+          )
+      <*> strOption
+          ( long "color-difference"
+         <> metavar "[#cc241d] | COLOR"
+         <> help "The color of discrepancies between the left and right side of\
+                 \ the duplication."
+         <> value "#cc241d"
+          )
+      <*> strOption
+          ( long "color-spacer"
+         <> metavar "[#689d6a] | COLOR"
+         <> help "The color of the spacer."
+         <> value "#689d6a"
+          )
+      <*> strOption
+          ( long "color-background"
+         <> metavar "[#ebdbb2] | COLOR"
+         <> help "The color of the background."
+         <> value "#ebdbb2"
+          )
+      <*> strOption
+          ( long "color-foreground"
+         <> metavar "[#282828] | COLOR"
+         <> help "The color of the foreground."
+         <> value "#282828"
+          )
 
-plotITDM :: Options -> (Int, (ITD, FastaSequence)) -> IO (ITD, FastaSequence)
-plotITDM opts (!count, (!itd, !fs)) = do
+plotITDM :: Options
+         -> Colors
+         -> (Int, (ITD, FastaSequence))
+         -> IO (ITD, FastaSequence)
+plotITDM opts colors (!count, (!itd, !fs)) = do
     let fileType = fmap ( fmap toLower
                         . reverse
                         . takeWhile (/= '.')
@@ -274,40 +329,41 @@ plotITDM opts (!count, (!itd, !fs)) = do
                    . fromJust
                    . outputPlot
                    $ opts
+        size = outputSize opts
 
     case fileType of
-        (Just "pdf")  -> renderPGF savefile (mkHeight (60 :: Double))
-                       . (\x -> plotITD fs itd x :: D.Diagram PGF)
+        (Just "pdf")  -> renderPGF savefile (mkHeight size)
+                       . (\x -> plotITD colors fs itd x :: D.Diagram PGF)
                        . Query
                        . fastaSeq
                        $ fs
-        (Just "svg")  -> renderSVG savefile (mkHeight (60 :: Double))
-                       . (\x -> plotITD fs itd x :: D.Diagram SVG)
+        (Just "svg")  -> renderSVG savefile (mkHeight size)
+                       . (\x -> plotITD colors fs itd x :: D.Diagram SVG)
                        . Query
                        . fastaSeq
                        $ fs
-        (Just "html") -> renderHtml5 savefile (mkHeight (60 :: Double))
-                       . (\x -> plotITD fs itd x :: D.Diagram Html5)
+        (Just "html") -> renderHtml5 savefile (mkHeight size)
+                       . (\x -> plotITD colors fs itd x :: D.Diagram Html5)
                        . Query
                        . fastaSeq
                        $ fs
-        (Just "png")  -> renderRasterific savefile (mkHeight (60 :: Double))
-                       . (\x -> plotITD fs itd x :: D.Diagram Rasterific)
+        (Just "png")  -> renderRasterific savefile (mkHeight size)
+                       . (\x -> plotITD colors fs itd x :: D.Diagram Rasterific)
                        . Query
                        . fastaSeq
                        $ fs
-        (Just "tif")  -> renderRasterific savefile (mkHeight (60 :: Double))
-                       . (\x -> plotITD fs itd x :: D.Diagram Rasterific)
+        (Just "tif")  -> renderRasterific savefile (mkHeight size)
+                       . (\x -> plotITD colors fs itd x :: D.Diagram Rasterific)
                        . Query
                        . fastaSeq
                        $ fs
-        (Just "jpg")  -> renderRasterific savefile (mkHeight (60 :: Double))
-                       . (\x -> plotITD fs itd x :: D.Diagram Rasterific)
+        (Just "jpg")  -> renderRasterific savefile (mkHeight size)
+                       . (\x -> plotITD colors fs itd x :: D.Diagram Rasterific)
                        . Query
                        . fastaSeq
                        $ fs
-        (Just "bmp")  -> renderRasterific savefile (mkHeight (60 :: Double))
-                       . (\x -> plotITD fs itd x :: D.Diagram Rasterific)
+        (Just "bmp")  -> renderRasterific savefile (mkHeight size)
+                       . (\x -> plotITD colors fs itd x :: D.Diagram Rasterific)
                        . Query
                        . fastaSeq
                        $ fs
@@ -386,7 +442,17 @@ mainFunc opts = do
                     . readFasta
                     $ hRefIn
 
-    let tempConfig = RepeatConfig
+    let colors = Colors { _colorDupL       = sRGB24read . inputColorDupL $ opts
+                        , _colorDupR       = sRGB24read . inputColorDupR $ opts
+                        , _colorMut        = sRGB24read . inputColorMut $ opts
+                        , _colorSpacer     =
+                            sRGB24read . inputColorSpacer $ opts
+                        , _colorBackground =
+                            sRGB24read . inputColorBackground $ opts
+                        , _colorForeground =
+                            sRGB24read . inputColorForeground $ opts
+                        }
+        tempConfig = RepeatConfig
                         { _blacklist    = suppliedBlacklist
                         , _refMap       = refMap
                         , _richness     = Richness . minRichness $ opts
@@ -485,7 +551,7 @@ mainFunc opts = do
                                   )
                         )
                     )
-                >-> P.mapM (plotITDM opts)
+                >-> P.mapM (plotITDM opts colors)
                 >-> P.map (printRow . getClass)
                 >-> encodeByName headerOrder
                 )

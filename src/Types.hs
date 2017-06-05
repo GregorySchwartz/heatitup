@@ -21,6 +21,7 @@ import Data.Csv
 import Data.Fasta.ByteString
 import qualified Data.ByteString.Char8 as C
 import qualified Data.SuffixTree as ST
+import Data.Colour.SRGB
 
 -- Local
 
@@ -59,6 +60,15 @@ newtype ReferenceMap = ReferenceMap
 data Classification = Typical | Atypical | Normal deriving (Eq, Ord, Read, Show)
 
 data LeftRightPortion = LeftP | RightP deriving (Show)
+
+data Colors = Colors
+    { _colorDupL       :: Colour Double
+    , _colorDupR       :: Colour Double
+    , _colorMut        :: Colour Double
+    , _colorSpacer     :: Colour Double
+    , _colorBackground :: Colour Double
+    , _colorForeground :: Colour Double
+    } deriving (Generic)
 
 data Duplication = Duplication { _dupSubstring        :: Substring
                                , _dupLocations        :: [Position]
@@ -107,8 +117,3 @@ data PrintITD = PrintITD { label           :: C.ByteString
 
 instance FromNamedRecord PrintITD
 instance ToNamedRecord PrintITD
-
--- Basic
-type FileName = String
-
--- Advanced

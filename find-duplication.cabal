@@ -1,5 +1,5 @@
 name:                find-duplication
-version:             0.5.2.0
+version:             0.5.2.1
 synopsis:            Find duplications in a sequence
 description:         Please see README.md
 homepage:            http://github.com/GregorySchwartz/find-duplication#readme
@@ -52,6 +52,7 @@ executable find-duplication
   build-depends:       base
                      , find-duplication
                      , bytestring
+                     , colour
                      , containers
                      , diagrams-core
                      , diagrams-lib
