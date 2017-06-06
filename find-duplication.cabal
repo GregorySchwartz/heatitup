@@ -1,5 +1,5 @@
 name:                find-duplication
-version:             0.5.3.0
+version:             0.5.3.1
 synopsis:            Find duplications in a sequence
 description:         Please see README.md
 homepage:            http://github.com/GregorySchwartz/find-duplication#readme
@@ -48,7 +48,7 @@ library
 executable find-duplication
   hs-source-dirs:      app
   main-is:             Main.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O2
+  ghc-options:         -threaded -rtsopts -O2
   build-depends:       base
                      , find-duplication
                      , bytestring
