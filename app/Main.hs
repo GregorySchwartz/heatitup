@@ -1,4 +1,4 @@
-{- find-duplication
+{- heatitup
 Gregory W. Schwartz
 
 Find duplications a sequence.
@@ -567,4 +567,4 @@ main = execParser opts >>= mainFunc
     opts = info (helper <*> options)
       ( fullDesc
      <> progDesc "Finds duplications in a sequence"
-     <> header "find-duplication, Gregory W. Schwartz" )
+     <> header "heatitup, Gregory W. Schwartz" )
