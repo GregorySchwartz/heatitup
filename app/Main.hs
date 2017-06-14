@@ -148,7 +148,7 @@ options = Options
       <*> strOption
           ( long "label"
          <> short 'l'
-         <> metavar "FILE"
+         <> metavar "STRING"
          <> value ""
          <> help "The label to use in the label column for the output"
           )
