@@ -6,7 +6,7 @@ homepage:            http://github.com/GregorySchwartz/heatitup#readme
 license:             GPL-3
 license-file:        LICENSE
 author:              Gregory W. Schwartz
-maintainer:          gsch@mail.med.upenn.edu
+maintainer:          gsch@pennmedicine.upenn.edu
 copyright:           2017 Gregory W. Schwartz
 category:            Bioinformatics
 build-type:          Simple
