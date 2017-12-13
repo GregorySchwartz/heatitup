@@ -265,40 +265,40 @@ options = Options
           )
       <*> strOption
           ( long "color-left-duplication"
-         <> metavar "[#458588] | COLOR"
+         <> metavar "[#a6cae3] | COLOR"
          <> help "The color of the left side of the repeated sequence."
-         <> value "#458588"
+         <> value "#a6cae3"
           )
       <*> strOption
           ( long "color-right-duplication"
-         <> metavar "[#b16286] | COLOR"
+         <> metavar "[#b0de8a] | COLOR"
          <> help "The color of the right side of the repeated sequence."
-         <> value "#b16286"
+         <> value "#b0de8a"
           )
       <*> strOption
           ( long "color-difference"
-         <> metavar "[#cc241d] | COLOR"
+         <> metavar "[#1978b3] | COLOR"
          <> help "The color of discrepancies between the left and right side of\
                  \ the duplication."
-         <> value "#cc241d"
+         <> value "#1978b3"
           )
       <*> strOption
           ( long "color-spacer"
-         <> metavar "[#689d6a] | COLOR"
-         <> help "The color of the spacer."
-         <> value "#689d6a"
+         <> metavar "[#fdbd6e] | COLOR"
+         <> help "The color of the exogenous nucleotides within the spacer."
+         <> value "#fdbd6e"
           )
       <*> strOption
           ( long "color-background"
-         <> metavar "[#ebdbb2] | COLOR"
+         <> metavar "[#ffffff] | COLOR"
          <> help "The color of the background."
-         <> value "#ebdbb2"
+         <> value "#ffffff"
           )
       <*> strOption
           ( long "color-foreground"
-         <> metavar "[#282828] | COLOR"
+         <> metavar "[#000000] | COLOR"
          <> help "The color of the foreground."
-         <> value "#282828"
+         <> value "#000000"
           )
 
 plotITDM :: Options

@@ -1,0 +1,152 @@
+* =heatitup=
+
+** Description
+
+=heatitup= looks at sequences (=FASTA= file input) to find and annotate the
+longest repeated substring as well as characterize the substring separating the
+repeated substring. =heatitup= has support for blacklisting known repeated
+substrings and can return a plot of the sequence with highlighted annotations.
+An in-depth example of the options and usage can be found in the publication
+titled "Classes of ITD predict outcomes in AML treated with FLT3 inhibitors".
+
+** Installation
+
+#+BEGIN_SRC sh
+stack install heatitup
+#+END_SRC
+
+** Usage
+
+#+BEGIN_SRC sh
+cat input.fasta | heatitup --output-plot HEADER.png --min-size 7 --min-mutations 5 --reference-input ref_input.fasta --spacer
+#+END_SRC
+
+** Documentation
+
+#+BEGIN_EXAMPLE
+heatitup, Gregory W. Schwartz
+
+Usage: heatitup [-i|--input FILE] [-s|--spacer]
+                [-I|--reference-input [Nothing] | FILE]
+                [-b|--blacklist-input [Nothing] | FILE] [-o|--output FILE]
+                [-O|--output-plot FILE] [-u|--output-size SIZE]
+                [-l|--label STRING] [-f|--reference-field [1] | INT]
+                [-p|--position-field [Nothing] | INT]
+                [-g|--ignore-field [Nothing] | INT] [-S|--min-size [15] | INT]
+                [-w|--gaussian-window [3] | Double]
+                [-t|--gaussian-time [2] | Double]
+                [-T|--gaussian-threshold [0.4] | Double]
+                [-m|--min-mutations INT] [-L|--levenshtein-distance [2] | INT]
+                [-c|--reference-check-blacklist]
+                [-r|--reference-recursive-blacklist]
+                [-R|--min-richness [1] | INT]
+                [--color-left-duplication [#a6cae3] | COLOR]
+                [--color-right-duplication [#b0de8a] | COLOR]
+                [--color-difference [#1978b3] | COLOR]
+                [--color-spacer [#fdbd6e] | COLOR]
+                [--color-background [#ffffff] | COLOR]
+                [--color-foreground [#000000] | COLOR]
+  Finds duplications in a sequence
+
+Available options:
+  -h,--help                Show this help text
+  -i,--input FILE          The input file
+  -s,--spacer              Whether to characterize the spacer. Requires
+                           reference-input and matching labels for the input and
+                           reference-input to compare.
+  -I,--reference-input [Nothing] | FILE
+                           The input file containing the reference sequences to
+                           compare to. The first entry in the field must be the
+                           accession and match the requested field from
+                           reference-field for the input. With no supplied file,
+                           no spacer will be annotated.
+  -b,--blacklist-input [Nothing] | FILE
+                           The input fasta file containing possible false
+                           positives -- sequences which may be duplicate
+                           nucleotides in the reference sequence.
+  -o,--output FILE         The output file
+  -O,--output-plot FILE    The output file for the plot. Each new plot gets a
+                           new number on it: output_1.svg, output_2.svg, etc.
+                           Each plot uses the first entry in the fasta header as
+                           the label. If FILE is HEADER (i.e. HEADER.pdf), uses
+                           the first entry in the fasta header as FILE along
+                           with the number. Supports html, png, tif, jpg, bmp,
+                           svg, and pdf. svg may render text differently in
+                           different situations, and pdf uses LaTeX for
+                           rendering and may also have issues if reads are too
+                           long, but the options are there and may be fixed in
+                           future releases.
+  -u,--output-size SIZE    ([20] | DOUBLE) The size of the sequence image
+                           output.
+  -l,--label STRING        The label to use in the label column for the output
+  -f,--reference-field [1] | INT
+                           The field in each input header that contains the
+                           reference accession number to compare to. Results in
+                           an out of bounds if this field does not exist.
+  -p,--position-field [Nothing] | INT
+                           The field in each input header that contains the
+                           starting position of the read. Added to the
+                           annotations. Results in out of bounds if this field
+                           does not exist.
+  -g,--ignore-field [Nothing] | INT
+                           The field in each input header that contains a 0 or a
+                           1: 0 means to ignore this read (assign as Normal) and
+                           1 means to find a duplication in this read. Used for
+                           reads where there is known to be no duplication and
+                           thus helps remove false positives.
+  -S,--min-size [15] | INT The minimum size of a duplication
+  -w,--gaussian-window [3] | Double
+                           The window for the discrete gaussian kernel atypical
+                           spacer determination
+  -t,--gaussian-time [2] | Double
+                           The time for the discrete gaussian kernel atypical
+                           spacer determination
+  -T,--gaussian-threshold [0.4] | Double
+                           The cutoff to be considered a mutation for the
+                           discrete gaussian kernel atypical spacer
+                           determination
+  -m,--min-mutations INT   The minimum number of nucleotides between mutations
+  -L,--levenshtein-distance [2] | INT
+                           The minimum Levenshtein distance to the false
+                           positive checker. If the distance to the false
+                           positive string is less than or equal to this number,
+                           the duplication is considered a false positive.
+                           Compares candidates against each sequence in
+                           --blacklist-input
+  -c,--reference-check-blacklist
+                           Whether to use the reference as a blacklist in
+                           addition to the supplied blacklist. That is, we check
+                           if the duplication can be found twice or more in the
+                           reference input.
+  -r,--reference-recursive-blacklist
+                           Whether to use the reference as a recursive blacklist
+                           in addition to the supplied blacklist. That is, the
+                           reference sequences are inputed with the same
+                           parameters (except distance, which here is 0) to the
+                           duplication finder, and those duplications found are
+                           added to the blacklist. This process is recursive,
+                           executed until no more duplications are found in the
+                           reference. Beware, too many blacklist entries can
+                           slow down the finder significantly, as each blacklist
+                           entry is compared with each candidate.
+  -R,--min-richness [1] | INT
+                           The minimum nucleotide richness (number of different
+                           types of nucleotides) allowed in the duplication to
+                           be considered real. Useful if the user knows that a
+                           sequence like "TTTTTTTTCTTTTTTTTC" is not likely to
+                           be real.
+  --color-left-duplication [#a6cae3] | COLOR
+                           The color of the left side of the repeated sequence.
+  --color-right-duplication [#b0de8a] | COLOR
+                           The color of the right side of the repeated sequence.
+  --color-difference [#1978b3] | COLOR
+                           The color of discrepancies between the left and right
+                           side of the duplication.
+  --color-spacer [#fdbd6e] | COLOR
+                           The color of the exogenous nucleotides within the
+                           spacer.
+  --color-background [#ffffff] | COLOR
+                           The color of the background.
+  --color-foreground [#000000] | COLOR
+                           The color of the foreground.
+#+END_EXAMPLE
