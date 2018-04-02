@@ -367,6 +367,7 @@ plotITDM opts colors (!count, (!itd, !fs)) = do
                        . Query
                        . fastaSeq
                        $ fs
+        (Just x)      -> error $ x <> " filetype not supported for output."
         Nothing      -> return ()
 
     return (itd, fs)
