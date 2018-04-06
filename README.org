@@ -11,6 +11,17 @@ titled "Classes of ITD predict outcomes in AML treated with FLT3 inhibitors".
 
 ** Installation
 
+*** Install =stack=
+
+See [[https://docs.haskellstack.org/en/stable/README/]] for more details.
+
+#+BEGIN_SRC sh
+curl -sSL https://get.haskellstack.org/ | sh
+stack setup
+#+END_SRC
+
+*** Install =heatitup=
+
 #+BEGIN_SRC sh
 stack install heatitup
 #+END_SRC
