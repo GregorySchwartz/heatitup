@@ -22,8 +22,16 @@ stack setup
 
 *** Install =heatitup=
 
+**** Online
+
 #+BEGIN_SRC sh
 stack install heatitup
+#+END_SRC
+
+**** Source
+
+#+BEGIN_SRC sh
+stack install
 #+END_SRC
 
 ** Usage
