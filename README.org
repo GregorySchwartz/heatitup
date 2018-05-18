@@ -1,5 +1,7 @@
 * =heatitup=
 
+See https://github.com/GregorySchwartz/heatitup for the latest version.
+
 ** Description
 
 =heatitup= looks at sequences (=FASTA= file input) to find and annotate the
