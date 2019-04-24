@@ -11,6 +11,16 @@ substrings and can return a plot of the sequence with highlighted annotations.
 An in-depth example of the options and usage can be found in the publication
 titled "Classes of ITD predict outcomes in AML treated with FLT3 inhibitors".
 
+There are three related tools for this program:
+
+- [[https://github.com/GregorySchwartz/heatitup][ =heatitup= ]] to categorize longest repeated substrings along with
+  characterizing the "spacer" in-between substrings.
+- [[https://github.com/GregorySchwartz/heatitup-complete][ =heatitup-complete= ]]
+  to apply =heatitup= to =BAM= files along with additional options for
+  preprocessing.
+- [[https://github.com/GregorySchwartz/collapse-duplication][ =collapse-duplication= ]] to collapse annotated reads found by =heatitup= into
+  clones with associated frequencies.
+
 ** Installation
 
 *** Install =stack=
