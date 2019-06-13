@@ -70,13 +70,14 @@ fragmentSequenceFiller (Window w) =
                           . C.drop 1
                           $ xs
 
--- | Get the hamming list between two strings
-hammingList :: C.ByteString -> C.ByteString -> [Bool]
-hammingList xs = C.zipWith (==) xs
+-- | Get the hamming list between two strings, ignoring a character.
+hammingList :: Maybe Char -> C.ByteString -> C.ByteString -> [Bool]
+hammingList Nothing xs  = C.zipWith (==) xs
+hammingList (Just i) xs = C.zipWith (\x y -> (x == y) || x == i || y == i) xs
 
--- | Get the hamming distance between two strings
-hamming :: C.ByteString -> C.ByteString -> Int
-hamming xs = length . filter (not . id) . hammingList xs
+-- | Get the hamming distance between two strings, ignoring a character.
+hamming :: Maybe Char -> C.ByteString -> C.ByteString -> Int
+hamming i xs = length . filter (not . id) . hammingList i xs
 
 -- | Check if positions overlap
 isOverlappingByPosition :: Window -> Position -> Position -> Bool
@@ -115,11 +116,12 @@ spacerFalsePositive (Percent p) base (Substring s) =
 -- a percentage of the spacer with a portion of the duplication (how much
 -- of that string differs).
 consecutiveSpacerFalsePositive :: Consecutive
+                               -> Maybe Char
                                -> C.ByteString
                                -> Substring
                                -> Bool
-consecutiveSpacerFalsePositive (Consecutive c) base (Substring s) =
-    any (not . isConsecutive c . hammingList s . unSubstring)
+consecutiveSpacerFalsePositive (Consecutive c) ignore base (Substring s) =
+    any (not . isConsecutive c . hammingList ignore s . unSubstring)
         . fragmentSequence (Window . C.length $ s)
         $ base
 

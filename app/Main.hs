@@ -63,6 +63,7 @@ data Options = Options { input                 :: Maybe String
                        , refField              :: Int
                        , posField              :: Maybe Int
                        , ignoreField           :: Maybe Int
+                       , ignoreChar            :: Maybe String
                        , inputMinSize          :: Int
                        , gaussWindow           :: Int
                        , gaussTime             :: Double
@@ -179,6 +180,12 @@ options = Options
                  \ means to find a duplication in this read.\
                  \ Used for reads where there is known to be no duplication\
                  \ and thus helps remove false positives."
+          )
+        )
+      <*> optional ( strOption
+          ( long "ignore-char"
+         <> metavar "[Nothing] | CHAR"
+         <> help "Character to ignore, useful for gaps."
           )
         )
       <*> option auto
@@ -498,6 +505,7 @@ mainFunc opts = do
                                         (Window $ gaussWindow opts)
                                         (Time $ gaussTime opts)
                                         (Threshold $ gaussThreshold opts)
+                                        (ignoreChar opts >>= headMay)
                                         refSeq
                                         )
                                         (Query . fastaSeq $ fs)

@@ -41,8 +41,8 @@ diffuse (Window w) (Time t) (Signal xs) = Signal . V.toList . V.imap go $ vec
     g n    = (1 / (sqrt (2 * pi * t))) * (exp ((- n ^ 2) / (2 * t)))
 
 -- | Convert a hamming comparison to a signal
-mutationSignal :: C.ByteString -> Substring -> Signal
-mutationSignal base = Signal
-                    . fmap (\x -> if x then 0 else 1)
-                    . hammingList base
-                    . unSubstring
+mutationSignal :: Maybe Char -> C.ByteString -> Substring -> Signal
+mutationSignal ignore base = Signal
+                           . fmap (\x -> if x then 0 else 1)
+                           . hammingList ignore base
+                           . unSubstring

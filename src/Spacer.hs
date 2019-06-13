@@ -33,6 +33,7 @@ import Diffusion
 getSpacer :: Window
           -> Time
           -> Threshold
+          -> Maybe Char
           -> ReferenceSeq
           -> Duplication
           -> Query
@@ -40,6 +41,7 @@ getSpacer :: Window
 getSpacer window
           time
           threshold
+          ignore
           (ReferenceSeq refSeq)
           (Duplication { _dupSubstring = s, _dupLocations = [p1, p2] })
           q
@@ -55,6 +57,7 @@ getSpacer window
                                              spacerPos
                                              p1
                                              p2
+                                             ignore
                                              refSeq
                                              s
                                              spacer
@@ -76,13 +79,14 @@ mutateQuery (Just (Position p)) (Substring s) q =
 -- | Get the most similar sequence to a base sequence from the left or
 -- right substring, along with the base fragment
 minHammingLeftRight
-    :: C.ByteString
+    :: Maybe Char
+    -> C.ByteString
     -> Substring
     -> Substring
     -> Either (Substring, C.ByteString) (Substring, C.ByteString)
-minHammingLeftRight base (Substring s) (Substring spacer) =
+minHammingLeftRight ignore base (Substring s) (Substring spacer) =
     either (Left . (Substring leftSeq,)) (Right . (Substring rightSeq,))
-        . minimumBy (comparing $ either (hamming leftSeq) (hamming rightSeq))
+        . minimumBy (comparing $ either (hamming ignore leftSeq) (hamming ignore rightSeq))
         . concat
         $ [ fmap (Left . unSubstring) . baseFragments $ leftSeq
           , fmap (Right . unSubstring) . baseFragments $ rightSeq
@@ -100,6 +104,7 @@ otherSpacerPositionsDiffusion :: Window
                               -> Position
                               -> Position
                               -> Position
+                              -> Maybe Char
                               -> C.ByteString
                               -> Substring
                               -> Substring
@@ -110,6 +115,7 @@ otherSpacerPositionsDiffusion window
                               (Position spacerPos)
                               (Position p1)
                               (Position p2)
+                              ignore
                               base
                               (Substring s)
                               (Substring spacer) =
@@ -130,9 +136,9 @@ otherSpacerPositionsDiffusion window
             . diffusedSeq
     diffusedSeq (joinedSubstring, baseFragment) =
         diffuse window time
-            . mutationSignal baseFragment
+            . mutationSignal ignore baseFragment
             $ joinedSubstring
-    minHamming = minHammingLeftRight base (Substring s) (Substring spacer)
+    minHamming = minHammingLeftRight ignore base (Substring s) (Substring spacer)
     spacerPoss  = [spacerPos .. p2 - 1]
 
 -- | Get the positions that are different between the spacer and the
@@ -142,6 +148,7 @@ otherSpacerPositions :: MinSize
                      -> Position
                      -> Position
                      -> Position
+                     -> Maybe Char
                      -> C.ByteString
                      -> Substring
                      -> Substring
@@ -151,15 +158,16 @@ otherSpacerPositions (MinSize minAtypicalSize)
                      (Position spacerPos)
                      (Position p1)
                      (Position p2)
+                     ignore
                      base
                      (Substring s)
                      (Substring spacer)
-    | consecutiveSpacerFalsePositive consecutive base
+    | consecutiveSpacerFalsePositive consecutive ignore base
     . Substring
     . getLeftRightPortion LeftP spacer
     $ s
     = []
-    | consecutiveSpacerFalsePositive consecutive base
+    | consecutiveSpacerFalsePositive consecutive ignore base
     . Substring
     . getLeftRightPortion RightP spacer
     $ s

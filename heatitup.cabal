@@ -1,5 +1,5 @@
 name:                heatitup
-version:             0.5.3.3
+version:             0.5.4.0
 synopsis:            Find and annotate ITDs.
 description:         Find and annotate ITDs using suffix trees and characterize the exogenous segments within the spacer using heat diffusion.
 homepage:            http://github.com/GregorySchwartz/heatitup#readme
